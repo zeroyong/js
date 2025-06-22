@@ -2,7 +2,7 @@
 # @Author: xhg
 # @Date:   2025-06-18 22:06:42
 # @Last Modified by:   xhg
-# @Last Modified time: 2025-06-19 21:50:53
+# @Last Modified time: 2025-06-19 21:34:56
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -25,26 +25,7 @@ from PyQt6.QtWidgets import (
     QTableWidgetItem, QHeaderView, QAbstractItemView
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QMimeData, QUrl, QTimer
-from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QFont, QIcon, QPixmap, QPalette, QColor, QPainter
-
-__version__ = "1.2.0"
-GITHUB_REPO = "yourname/yourrepo"  # TODO: 替换为你的GitHub仓库名
-
-class UpdateChecker(QThread):
-    update_found = pyqtSignal(str, str)  # 版本号, 下载链接
-    
-    def run(self):
-        try:
-            url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
-            resp = requests.get(url, timeout=8)
-            if resp.status_code == 200:
-                data = resp.json()
-                latest_ver = data.get("tag_name", "").lstrip("v")
-                html_url = data.get("html_url", "")
-                if latest_ver and latest_ver != __version__:
-                    self.update_found.emit(latest_ver, html_url)
-        except Exception as e:
-            pass  # 静默失败
+from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QFont, QIcon, QPixmap, QPalette, QColor
 
 class UploadThread(QThread):
     """上传线程"""
@@ -320,30 +301,20 @@ class BookInfoWidget(QWidget):
 class BookUploaderQt(QMainWindow):
     def __init__(self):
         super().__init__()
-        # 强制任务栏图标为icon.png
-        if os.path.exists("icon.png"):
-            QApplication.setWindowIcon(QIcon("icon.png"))
         self.upload_thread = None
         self.current_file_path = None
         self.upload_result = None
         self.setup_ui()
         self.setup_styles()
-        self.check_update()
         
-    def check_update(self):
-        self.update_checker = UpdateChecker()
-        self.update_checker.update_found.connect(self.show_update_dialog)
-        self.update_checker.start()
-
-    def show_update_dialog(self, latest_ver, url):
-        QMessageBox.information(self, "发现新版本", f"发现新版本：v{latest_ver}\n\n点击确定打开下载页面。", QMessageBox.StandardButton.Ok)
-        import webbrowser
-        webbrowser.open(url)
-
     def setup_ui(self):
-        self.setWindowTitle(" 书单上传工具 - XHG v" + __version__)
-        self.setGeometry(150, 30, 1000, 690)
+        self.setWindowTitle("📚 书单上传工具 - XHG")
+        # 设置初始
+        self.setGeometry(150, 55, 1000, 650)
         self.setMinimumSize(900, 600)
+        
+        # 设置窗口图标
+        self.setWindowIcon(self.style().standardIcon(self.style().StandardPixmap.SP_ComputerIcon))
         
         # 主窗口部件
         central_widget = QWidget()

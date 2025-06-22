@@ -2,7 +2,7 @@
 # @Author: xhg
 # @Date:   2025-06-18 22:06:42
 # @Last Modified by:   xhg
-# @Last Modified time: 2025-06-19 21:50:53
+# @Last Modified time: 2025-06-19 21:39:18
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -26,25 +26,6 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QMimeData, QUrl, QTimer
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QFont, QIcon, QPixmap, QPalette, QColor, QPainter
-
-__version__ = "1.2.0"
-GITHUB_REPO = "yourname/yourrepo"  # TODO: 替换为你的GitHub仓库名
-
-class UpdateChecker(QThread):
-    update_found = pyqtSignal(str, str)  # 版本号, 下载链接
-    
-    def run(self):
-        try:
-            url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
-            resp = requests.get(url, timeout=8)
-            if resp.status_code == 200:
-                data = resp.json()
-                latest_ver = data.get("tag_name", "").lstrip("v")
-                html_url = data.get("html_url", "")
-                if latest_ver and latest_ver != __version__:
-                    self.update_found.emit(latest_ver, html_url)
-        except Exception as e:
-            pass  # 静默失败
 
 class UploadThread(QThread):
     """上传线程"""
@@ -135,12 +116,15 @@ class UploadThread(QThread):
 class DragDropWidget(QFrame):
     """拖拽文件区域"""
     file_dropped = pyqtSignal(str)
+    file_clicked = pyqtSignal()
     
     def __init__(self):
         super().__init__()
         self.setAcceptDrops(True)
         self.setup_ui()
-        
+        # 绑定鼠标点击事件
+        self.mousePressEvent = self.on_click
+    
     def setup_ui(self):
         self.setFrameStyle(QFrame.Shape.Box)
         self.setMinimumHeight(150)
@@ -169,7 +153,7 @@ class DragDropWidget(QFrame):
         layout.addWidget(icon_label)
         
         # 拖拽提示文字
-        text_label = QLabel("拖拽JSON文件到这里\n或点击下方按钮选择文件")
+        text_label = QLabel("拖拽JSON文件到这里\n或点击任意区域选择文件")
         text_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         text_label.setStyleSheet("""
             font-size: 16px; 
@@ -179,7 +163,7 @@ class DragDropWidget(QFrame):
         """)
         layout.addWidget(text_label)
         
-        # 选择文件按钮
+        # 选择文件按钮（保留，便于无鼠标用户）
         self.select_btn = QPushButton("选择文件")
         self.select_btn.setStyleSheet("""
             QPushButton {
@@ -203,59 +187,9 @@ class DragDropWidget(QFrame):
             }
         """)
         layout.addWidget(self.select_btn, alignment=Qt.AlignmentFlag.AlignCenter)
-        
-    def dragEnterEvent(self, event: QDragEnterEvent):
-        if event.mimeData().hasUrls():
-            event.acceptProposedAction()
-            self.setStyleSheet("""
-                QFrame {
-                    border: 3px dashed #28a745;
-                    border-radius: 12px;
-                    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                        stop:0 #d4edda, stop:1 #c3e6cb);
-                    margin: 5px;
-                }
-            """)
     
-    def dragLeaveEvent(self, event):
-        self.setStyleSheet("""
-            QFrame {
-                border: 3px dashed #007bff;
-                border-radius: 12px;
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 #f8f9fa, stop:1 #e9ecef);
-                margin: 5px;
-            }
-            QFrame:hover {
-                border-color: #28a745;
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 #d4edda, stop:1 #c3e6cb);
-            }
-        """)
-    
-    def dropEvent(self, event: QDropEvent):
-        urls = event.mimeData().urls()
-        if urls:
-            file_path = urls[0].toLocalFile()
-            if file_path.lower().endswith('.json'):
-                self.file_dropped.emit(file_path)
-            else:
-                QMessageBox.warning(self, "文件格式错误", "请选择JSON文件！")
-        
-        self.setStyleSheet("""
-            QFrame {
-                border: 3px dashed #007bff;
-                border-radius: 12px;
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 #f8f9fa, stop:1 #e9ecef);
-                margin: 5px;
-            }
-            QFrame:hover {
-                border-color: #28a745;
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 #d4edda, stop:1 #c3e6cb);
-            }
-        """)
+    def on_click(self, event):
+        self.file_clicked.emit()
 
 class BookInfoWidget(QWidget):
     """书籍信息显示组件"""
@@ -320,30 +254,35 @@ class BookInfoWidget(QWidget):
 class BookUploaderQt(QMainWindow):
     def __init__(self):
         super().__init__()
-        # 强制任务栏图标为icon.png
-        if os.path.exists("icon.png"):
-            QApplication.setWindowIcon(QIcon("icon.png"))
         self.upload_thread = None
         self.current_file_path = None
         self.upload_result = None
         self.setup_ui()
         self.setup_styles()
-        self.check_update()
         
-    def check_update(self):
-        self.update_checker = UpdateChecker()
-        self.update_checker.update_found.connect(self.show_update_dialog)
-        self.update_checker.start()
-
-    def show_update_dialog(self, latest_ver, url):
-        QMessageBox.information(self, "发现新版本", f"发现新版本：v{latest_ver}\n\n点击确定打开下载页面。", QMessageBox.StandardButton.Ok)
-        import webbrowser
-        webbrowser.open(url)
-
     def setup_ui(self):
-        self.setWindowTitle(" 书单上传工具 - XHG v" + __version__)
+        self.setWindowTitle("📚 书单上传工具 - XHG")
+        # 设置初始
         self.setGeometry(150, 30, 1000, 690)
         self.setMinimumSize(900, 600)
+        
+        # 设置窗口图标
+        icon_path = None
+        for name in ["icon.png", "icon.ico"]:
+            if os.path.exists(name):
+                icon_path = name
+                break
+        if icon_path:
+            self.setWindowIcon(QIcon(icon_path))
+        else:
+            # 用emoji生成一个QPixmap
+            pixmap = QPixmap(64, 64)
+            pixmap.fill(Qt.GlobalColor.transparent)
+            painter = QPainter(pixmap)
+            painter.setFont(self.font())
+            painter.drawText(pixmap.rect(), Qt.AlignmentFlag.AlignCenter, "📚")
+            painter.end()
+            self.setWindowIcon(QIcon(pixmap))
         
         # 主窗口部件
         central_widget = QWidget()
@@ -447,6 +386,8 @@ class BookUploaderQt(QMainWindow):
         
         main_layout.addLayout(bottom_layout)
         
+        self.history_list.itemClicked.connect(self.on_history_item_clicked)
+        
     def setup_styles(self):
         """设置全局样式"""
         self.setStyleSheet("""
@@ -524,6 +465,7 @@ class BookUploaderQt(QMainWindow):
         self.drag_drop_widget = DragDropWidget()
         self.drag_drop_widget.file_dropped.connect(self.on_file_selected)
         self.drag_drop_widget.select_btn.clicked.connect(self.select_file)
+        self.drag_drop_widget.file_clicked.connect(self.select_file)  # 新增：点击任意区域选择文件
         file_layout.addWidget(self.drag_drop_widget)
         
         # 文件信息显示
@@ -799,6 +741,12 @@ class BookUploaderQt(QMainWindow):
         # 限制历史记录数量
         while self.history_list.count() > 10:
             self.history_list.takeItem(self.history_list.count() - 1)
+
+    def on_history_item_clicked(self, item):
+        link = item.data(Qt.ItemDataRole.UserRole)
+        if link:
+            pyperclip.copy(link)
+            QMessageBox.information(self, "复制成功", f"直链已复制到剪贴板：\n{link}")
 
 def main():
     app = QApplication(sys.argv)

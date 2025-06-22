@@ -2,7 +2,7 @@
 # @Author: xhg
 # @Date:   2025-06-18 22:06:42
 # @Last Modified by:   xhg
-# @Last Modified time: 2025-06-19 21:50:53
+# @Last Modified time: 2025-06-18 22:46:31
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -25,26 +25,7 @@ from PyQt6.QtWidgets import (
     QTableWidgetItem, QHeaderView, QAbstractItemView
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QMimeData, QUrl, QTimer
-from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QFont, QIcon, QPixmap, QPalette, QColor, QPainter
-
-__version__ = "1.2.0"
-GITHUB_REPO = "yourname/yourrepo"  # TODO: 替换为你的GitHub仓库名
-
-class UpdateChecker(QThread):
-    update_found = pyqtSignal(str, str)  # 版本号, 下载链接
-    
-    def run(self):
-        try:
-            url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
-            resp = requests.get(url, timeout=8)
-            if resp.status_code == 200:
-                data = resp.json()
-                latest_ver = data.get("tag_name", "").lstrip("v")
-                html_url = data.get("html_url", "")
-                if latest_ver and latest_ver != __version__:
-                    self.update_found.emit(latest_ver, html_url)
-        except Exception as e:
-            pass  # 静默失败
+from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QFont, QIcon, QPixmap, QPalette, QColor
 
 class UploadThread(QThread):
     """上传线程"""
@@ -81,7 +62,7 @@ class UploadThread(QThread):
                 # 准备请求头
                 headers = {
                     'User-Agent': 'BookUploader/1.0',
-                    'Accept': 'text/plain, application/json',
+                    'Accept': 'multipart/form-data',
                     'Accept-Encoding': 'gzip, deflate',
                     'Connection': 'keep-alive'
                 }
@@ -98,7 +79,7 @@ class UploadThread(QThread):
                 )
             
             # 检查响应状态
-            if response.status_code == 200 or response.status_code == 400:
+            if response.status_code == 200:
                 result = response.text.strip()
                 if result:
                     try:
@@ -108,20 +89,25 @@ class UploadThread(QThread):
                             # 从JSON响应中获取文件名
                             file_name = response_data['data']
                             download_url = f"http://static.sy.yesui.me:7747/shuyuan/{file_name}"
-                            self.progress_updated.emit("上传完成！")
-                            self.upload_completed.emit("success", download_url)
                         else:
-                            # 如果没有data字段，按原来的方式处理
-                            download_url = f"http://sy.yesui.me:7747/shuyuan/{result}"
-                            self.progress_updated.emit("上传完成！")
-                            self.upload_completed.emit("success", download_url)
+                            # 如果不是JSON格式，按原来的方式处理
+                            download_url = f"http://static.sy.yesui.me:7747/shuyuan/{result}"
                     except json.JSONDecodeError:
                         # 如果不是JSON格式，按原来的方式处理
-                        download_url = f"http://sy.yesui.me:7747/shuyuan/{result}"
-                        self.progress_updated.emit("上传完成！")
-                        self.upload_completed.emit("success", download_url)
+                        download_url = f"http://static.sy.yesui.me:7747/shuyuan/{result}"
+                    
+                    self.progress_updated.emit("上传完成！")
+                    self.upload_completed.emit("success", download_url)
                 else:
                     raise Exception("服务器返回空响应")
+            elif response.status_code == 400:
+                # 尝试解析错误信息
+                try:
+                    error_info = response.json()
+                    error_msg = error_info.get('error', '请求格式错误')
+                except:
+                    error_msg = f"服务器返回400错误: {response.text[:200]}"
+                raise Exception(error_msg)
             else:
                 raise Exception(f"服务器返回错误状态码: {response.status_code}, 响应: {response.text[:200]}")
                 
@@ -320,30 +306,19 @@ class BookInfoWidget(QWidget):
 class BookUploaderQt(QMainWindow):
     def __init__(self):
         super().__init__()
-        # 强制任务栏图标为icon.png
-        if os.path.exists("icon.png"):
-            QApplication.setWindowIcon(QIcon("icon.png"))
         self.upload_thread = None
         self.current_file_path = None
         self.upload_result = None
         self.setup_ui()
         self.setup_styles()
-        self.check_update()
         
-    def check_update(self):
-        self.update_checker = UpdateChecker()
-        self.update_checker.update_found.connect(self.show_update_dialog)
-        self.update_checker.start()
-
-    def show_update_dialog(self, latest_ver, url):
-        QMessageBox.information(self, "发现新版本", f"发现新版本：v{latest_ver}\n\n点击确定打开下载页面。", QMessageBox.StandardButton.Ok)
-        import webbrowser
-        webbrowser.open(url)
-
     def setup_ui(self):
-        self.setWindowTitle(" 书单上传工具 - XHG v" + __version__)
-        self.setGeometry(150, 30, 1000, 690)
+        self.setWindowTitle("📚 书单上传工具 - PyQt6版本")
+        self.setGeometry(100, 100, 1000, 700)
         self.setMinimumSize(900, 600)
+        
+        # 设置窗口图标
+        self.setWindowIcon(self.style().standardIcon(self.style().StandardPixmap.SP_ComputerIcon))
         
         # 主窗口部件
         central_widget = QWidget()

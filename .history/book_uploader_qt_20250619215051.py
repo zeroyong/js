@@ -2,7 +2,7 @@
 # @Author: xhg
 # @Date:   2025-06-18 22:06:42
 # @Last Modified by:   xhg
-# @Last Modified time: 2025-06-19 21:50:53
+# @Last Modified time: 2025-06-19 21:50:51
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -320,30 +320,35 @@ class BookInfoWidget(QWidget):
 class BookUploaderQt(QMainWindow):
     def __init__(self):
         super().__init__()
-        # 强制任务栏图标为icon.png
-        if os.path.exists("icon.png"):
-            QApplication.setWindowIcon(QIcon("icon.png"))
         self.upload_thread = None
         self.current_file_path = None
         self.upload_result = None
         self.setup_ui()
         self.setup_styles()
-        self.check_update()
         
-    def check_update(self):
-        self.update_checker = UpdateChecker()
-        self.update_checker.update_found.connect(self.show_update_dialog)
-        self.update_checker.start()
-
-    def show_update_dialog(self, latest_ver, url):
-        QMessageBox.information(self, "发现新版本", f"发现新版本：v{latest_ver}\n\n点击确定打开下载页面。", QMessageBox.StandardButton.Ok)
-        import webbrowser
-        webbrowser.open(url)
-
     def setup_ui(self):
-        self.setWindowTitle(" 书单上传工具 - XHG v" + __version__)
+        self.setWindowTitle(" 书单上传工具 - XHG")
+        # 设置初始
         self.setGeometry(150, 30, 1000, 690)
         self.setMinimumSize(900, 600)
+        
+        # 设置窗口图标
+        icon_path = None
+        for name in ["icon.png", "icon.ico"]:
+            if os.path.exists(name):
+                icon_path = name
+                break
+        if icon_path:
+            self.setWindowIcon(QIcon(icon_path))
+        else:
+            # 用emoji生成一个QPixmap
+            pixmap = QPixmap(64, 64)
+            pixmap.fill(Qt.GlobalColor.transparent)
+            painter = QPainter(pixmap)
+            painter.setFont(self.font())
+            painter.drawText(pixmap.rect(), Qt.AlignmentFlag.AlignCenter, "📚")
+            painter.end()
+            self.setWindowIcon(QIcon(pixmap))
         
         # 主窗口部件
         central_widget = QWidget()
