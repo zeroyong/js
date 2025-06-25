@@ -2,7 +2,7 @@
  * @Author: xhg
  * @Date:   2025-06-17 20:49:16
  * @Last Modified by:   xhg
- * @Last Modified time: 2025-06-22 11:02:03
+ * @Last Modified time: 2025-06-22 10:56:18
  */
 // ==UserScript==
 // @name        New script tuishujun.com
@@ -19,111 +19,6 @@
 
     // 当前选中的书单名称
     let currentBookListName = '我的书单';
-
-    // 创建优美的消息提示系统
-    function createNotification(message, type = 'info', duration = 3000) {
-        // 移除现有的通知
-        const existingNotifications = document.querySelectorAll('.custom-notification');
-        existingNotifications.forEach(notification => notification.remove());
-
-        const notification = document.createElement('div');
-        notification.className = 'custom-notification';
-        
-        // 根据类型设置样式
-        const typeStyles = {
-            success: {
-                background: 'linear-gradient(135deg, #28a745, #20c997)',
-                icon: '✅',
-                borderColor: '#28a745'
-            },
-            error: {
-                background: 'linear-gradient(135deg, #dc3545, #e74c3c)',
-                icon: '❌',
-                borderColor: '#dc3545'
-            },
-            warning: {
-                background: 'linear-gradient(135deg, #ffc107, #fd7e14)',
-                icon: '⚠️',
-                borderColor: '#ffc107'
-            },
-            info: {
-                background: 'linear-gradient(135deg, #007bff, #6f42c1)',
-                icon: 'ℹ️',
-                borderColor: '#007bff'
-            }
-        };
-
-        const style = typeStyles[type] || typeStyles.info;
-
-        notification.style.cssText = `
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: ${style.background};
-            color: white;
-            padding: 15px 25px;
-            border-radius: 10px;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-            z-index: 10003;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            font-size: 14px;
-            font-weight: 500;
-            border: 2px solid ${style.borderColor};
-            backdrop-filter: blur(10px);
-            animation: slideInDown 0.3s ease-out;
-            max-width: 400px;
-            text-align: center;
-            line-height: 1.4;
-        `;
-
-        notification.innerHTML = `
-            <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
-                <span style="font-size: 18px;">${style.icon}</span>
-                <span>${message}</span>
-            </div>
-        `;
-
-        // 添加动画样式
-        const styleSheet = document.createElement('style');
-        styleSheet.textContent = `
-            @keyframes slideInDown {
-                from {
-                    transform: translateX(-50%) translateY(-100%);
-                    opacity: 0;
-                }
-                to {
-                    transform: translateX(-50%) translateY(0);
-                    opacity: 1;
-                }
-            }
-            @keyframes slideOutUp {
-                from {
-                    transform: translateX(-50%) translateY(0);
-                    opacity: 1;
-                }
-                to {
-                    transform: translateX(-50%) translateY(-100%);
-                    opacity: 0;
-                }
-            }
-        `;
-        document.head.appendChild(styleSheet);
-
-        document.body.appendChild(notification);
-
-        // 自动移除
-        setTimeout(() => {
-            notification.style.animation = 'slideOutUp 0.3s ease-in';
-            setTimeout(() => {
-                if (notification.parentNode) {
-                    notification.remove();
-                }
-            }, 300);
-        }, duration);
-
-        return notification;
-    }
 
     // 等待页面加载完成
     function waitForElement(selector, timeout = 5000) {
@@ -277,7 +172,7 @@
             const bookList = getCurrentBookList();
             
             if (bookList.length === 0) {
-                createNotification('当前书单为空，没有可导出的内容！', 'warning');
+                alert('当前书单为空，没有可导出的内容！');
                 return;
             }
             
@@ -302,10 +197,10 @@
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
             
-            createNotification(`成功导出 ${bookList.length} 本书籍到本地！\n\n接下来请运行Python上传工具来获取直链。`, 'success', 5000);
+            alert(`成功导出 ${bookList.length} 本书籍到本地！\n\n接下来请运行Python上传工具来获取直链。`);
         } catch (error) {
             console.error('导出失败:', error);
-            createNotification('导出失败，请重试！', 'error');
+            alert('导出失败，请重试！');
         }
     }
 
@@ -475,11 +370,11 @@
                         updateAddButtonState();
                     }
                     
-                    createNotification('删除成功！', 'success');
+                    alert('删除成功！');
                 }
             } catch (error) {
                 console.error('删除失败:', error);
-                createNotification('删除失败，请重试！', 'error');
+                alert('删除失败，请重试！');
             }
         }
     };
@@ -564,9 +459,6 @@
                         button.innerHTML = result.isUpdate ? '🔄 已更新' : '✅ 已添加';
                         button.style.background = '#28a745';
                         
-                        // 使用优美提示
-                        createNotification(result.message, 'success');
-                        
                         // 调试信息
                         console.log('书籍添加成功:', bookInfo.title);
                         console.log('当前书单数量:', getCurrentBookList().length);
@@ -577,7 +469,6 @@
                     } else {
                         button.innerHTML = '❌ 添加失败';
                         button.style.background = '#dc3545';
-                        createNotification(result.message, 'error');
                         setTimeout(() => {
                             updateAddButtonState();
                         }, 2000);
@@ -585,7 +476,6 @@
                 } else {
                     button.innerHTML = '❌ 获取信息失败';
                     button.style.background = '#dc3545';
-                    createNotification('获取书籍信息失败，请重试！', 'error');
                     setTimeout(() => {
                         updateAddButtonState();
                     }, 2000);
@@ -594,7 +484,6 @@
                 console.error('添加到书单失败:', error);
                 button.innerHTML = '⏰ 页面未加载完成';
                 button.style.background = '#ffc107';
-                createNotification('页面未加载完成，请稍后重试！', 'warning');
                 setTimeout(() => {
                     updateAddButtonState();
                 }, 2000);
@@ -604,16 +493,16 @@
         return button;
     }
 
-    // 创建书单设置按钮（整合所有书单功能）
-    function createBookListSettingsButton() {
+    // 创建新建书单按钮
+    function createNewBookListButton() {
         const button = document.createElement('button');
-        button.innerHTML = '⚙️ 书单设置';
+        button.innerHTML = '📝 新建书单';
         button.style.cssText = `
             position: fixed;
             top: 20px;
             right: 140px;
             z-index: 9999;
-            background: #6c757d;
+            background: #28a745;
             color: white;
             border: none;
             padding: 10px 20px;
@@ -626,46 +515,146 @@
             text-align: center;
         `;
         
-        // 创建悬浮框
-        const { popup, content, title } = createBookListPopup();
-        
-        // 鼠标悬浮显示书单
         button.addEventListener('mouseenter', () => {
-            button.style.background = '#5a6268';
-            popup.style.display = 'block';
-            // 确保书单内容是最新的
-            setTimeout(() => {
-                updateBookListDisplay(content, title);
-            }, 50);
+            button.style.background = '#218838';
         });
         
-        // 鼠标离开隐藏书单
         button.addEventListener('mouseleave', () => {
-            button.style.background = '#6c757d';
-            // 延迟隐藏，给用户时间移动到悬浮框
-            setTimeout(() => {
-                if (!popup.matches(':hover')) {
-                    popup.style.display = 'none';
-                }
-            }, 200);
+            button.style.background = '#28a745';
         });
         
-        // 悬浮框鼠标离开时隐藏
-        popup.addEventListener('mouseleave', () => {
-            popup.style.display = 'none';
-        });
-        
-        // 点击按钮打开书单管理面板
         button.addEventListener('click', () => {
-            openBookListManager();
+            const bookListName = prompt('请输入新书单名称：');
+            if (bookListName && bookListName.trim()) {
+                createNewBookList(bookListName.trim());
+            }
         });
         
         return button;
     }
 
+    // 创建书单选择下拉框
+    function createBookListDropdown() {
+        const container = document.createElement('div');
+        container.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 260px;
+            z-index: 9999;
+            min-width: 150px;
+        `;
+        
+        const button = document.createElement('button');
+        button.id = 'booklist-dropdown';
+        button.innerHTML = `${currentBookListName} ▼`;
+        button.style.cssText = `
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: all 0.3s;
+            min-width: 150px;
+            text-align: center;
+            position: relative;
+        `;
+        
+        const dropdown = document.createElement('div');
+        dropdown.id = 'booklist-dropdown-menu';
+        dropdown.style.cssText = `
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: none;
+            z-index: 10001;
+            max-height: 300px;
+            overflow-y: auto;
+        `;
+        
+        button.addEventListener('mouseenter', () => {
+            button.style.background = '#5a6268';
+            updateDropdownMenu();
+            dropdown.style.display = 'block';
+        });
+        
+        button.addEventListener('mouseleave', () => {
+            button.style.background = '#6c757d';
+            setTimeout(() => {
+                if (!dropdown.matches(':hover')) {
+                    dropdown.style.display = 'none';
+                }
+            }, 200);
+        });
+        
+        dropdown.addEventListener('mouseleave', () => {
+            dropdown.style.display = 'none';
+        });
+        
+        container.appendChild(button);
+        container.appendChild(dropdown);
+        
+        return container;
+    }
+
+    // 更新下拉菜单
+    function updateDropdownMenu() {
+        const dropdown = document.getElementById('booklist-dropdown-menu');
+        const button = document.getElementById('booklist-dropdown');
+        
+        if (!dropdown || !button) return;
+        
+        const allBookLists = getAllBookLists();
+        const bookListNames = Object.keys(allBookLists);
+        
+        const menuItems = bookListNames.map(name => {
+            const bookCount = allBookLists[name].书籍.length;
+            const isCurrent = name === currentBookListName;
+            return `
+                <div class="dropdown-item" data-name="${name}" 
+                     style="padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #f0f0f0; ${isCurrent ? 'background: #e3f2fd;' : ''}"
+                     onmouseover="this.style.background='${isCurrent ? '#bbdefb' : '#f8f9fa'}'"
+                     onmouseout="this.style.background='${isCurrent ? '#e3f2fd' : 'white'}'">
+                    ${name} (${bookCount})
+                </div>
+            `;
+        }).join('');
+        
+        dropdown.innerHTML = menuItems + `
+            <div class="dropdown-item" style="padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #f0f0f0; color: #007bff; font-weight: bold;"
+                 onmouseover="this.style.background='#f8f9fa'"
+                 onmouseout="this.style.background='white'"
+                 onclick="openBookListManager()">
+                管理书单...
+            </div>
+        `;
+        
+        // 添加点击事件
+        dropdown.querySelectorAll('.dropdown-item[data-name]').forEach(item => {
+            item.addEventListener('click', () => {
+                const name = item.getAttribute('data-name');
+                switchBookList(name);
+                dropdown.style.display = 'none';
+            });
+        });
+    }
+
     // 切换书单
     function switchBookList(name) {
         currentBookListName = name;
+        
+        // 更新下拉框按钮文字
+        const button = document.getElementById('booklist-dropdown');
+        if (button) {
+            button.innerHTML = `${currentBookListName} ▼`;
+        }
         
         // 更新添加按钮状态
         updateAddButtonState();
@@ -678,7 +667,6 @@
             updateBookListDisplay(content, titleElement);
         }
         
-        createNotification(`已切换到书单：${currentBookListName}`, 'info');
         console.log('切换到书单:', currentBookListName);
     }
 
@@ -687,7 +675,7 @@
         const allBookLists = getAllBookLists();
         
         if (allBookLists[name]) {
-            createNotification('书单名称已存在，请使用其他名称！', 'warning');
+            alert('书单名称已存在，请使用其他名称！');
             return;
         }
         
@@ -699,7 +687,7 @@
         saveAllBookLists(allBookLists);
         switchBookList(name);
         
-        createNotification(`书单"${name}"创建成功！`, 'success');
+        alert(`书单"${name}"创建成功！`);
     }
 
     // 打开书单管理面板
@@ -716,19 +704,16 @@
         bookListNames.forEach(name => {
             const bookCount = allBookLists[name].书籍.length;
             const isDefault = allBookLists[name].默认状态;
-            const isCurrent = name === currentBookListName;
             
             managerHtml += `
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #f0f0f0; ${isCurrent ? 'background: #e3f2fd;' : ''}">
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #f0f0f0;">
                     <div>
                         <strong>${name}</strong> 
                         <span style="color: #666; font-size: 12px;">书籍: ${bookCount}</span>
                         ${isDefault ? '<span style="color: #28a745; font-size: 12px;">(默认)</span>' : ''}
-                        ${isCurrent ? '<span style="color: #007bff; font-size: 12px;">(当前)</span>' : ''}
                     </div>
                     <div>
-                        <button onclick="switchToBookList('${name}')" style="background: #007bff; color: white; border: none; padding: 4px 8px; border-radius: 3px; margin-right: 5px; cursor: pointer; font-size: 12px;">切换</button>
-                        <button onclick="renameBookList('${name}')" style="background: #ffc107; color: white; border: none; padding: 4px 8px; border-radius: 3px; margin-right: 5px; cursor: pointer; font-size: 12px;">重命名</button>
+                        <button onclick="renameBookList('${name}')" style="background: #007bff; color: white; border: none; padding: 4px 8px; border-radius: 3px; margin-right: 5px; cursor: pointer; font-size: 12px;">重命名</button>
                         <button onclick="deleteBookList('${name}')" style="background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 12px;">删除</button>
                     </div>
                 </div>
@@ -778,12 +763,6 @@
         }
     };
 
-    // 切换到指定书单
-    window.switchToBookList = function(name) {
-        switchBookList(name);
-        closeBookListManager();
-    };
-
     // 重命名书单
     window.renameBookList = function(oldName) {
         const newName = prompt(`请输入"${oldName}"的新名称：`);
@@ -791,7 +770,7 @@
             const allBookLists = getAllBookLists();
             
             if (allBookLists[newName.trim()]) {
-                createNotification('书单名称已存在，请使用其他名称！', 'warning');
+                alert('书单名称已存在，请使用其他名称！');
                 return;
             }
             
@@ -803,8 +782,9 @@
                 currentBookListName = newName.trim();
             }
             
+            updateDropdownMenu();
             closeBookListManager();
-            createNotification('重命名成功！', 'success');
+            alert('重命名成功！');
         }
     };
 
@@ -833,8 +813,9 @@
                 }
             }
             
+            updateDropdownMenu();
             closeBookListManager();
-            createNotification('删除成功！', 'success');
+            alert('删除成功！');
         }
     };
 
@@ -847,6 +828,60 @@
         }
     };
 
+    // 创建查看书单按钮
+    function createViewBookListButton() {
+        const button = document.createElement('button');
+        button.innerHTML = '📚 我的书单';
+        button.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 420px;
+            z-index: 9999;
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: all 0.3s;
+            min-width: 120px;
+            text-align: center;
+        `;
+        
+        // 创建悬浮框
+        const { popup, content, title } = createBookListPopup();
+        
+        // 鼠标悬浮显示书单
+        button.addEventListener('mouseenter', () => {
+            button.style.background = '#5a6268';
+            popup.style.display = 'block';
+            // 确保书单内容是最新的
+            setTimeout(() => {
+                updateBookListDisplay(content, title);
+            }, 50);
+        });
+        
+        // 鼠标离开隐藏书单
+        button.addEventListener('mouseleave', () => {
+            button.style.background = '#6c757d';
+            // 延迟隐藏，给用户时间移动到悬浮框
+            setTimeout(() => {
+                if (!popup.matches(':hover')) {
+                    popup.style.display = 'none';
+                }
+            }, 200);
+        });
+        
+        // 悬浮框鼠标离开时隐藏
+        popup.addEventListener('mouseleave', () => {
+            popup.style.display = 'none';
+        });
+        
+        return button;
+    }
+
     // 主函数
     function init() {
         // 等待页面基本结构加载完成
@@ -854,19 +889,27 @@
             document.addEventListener('DOMContentLoaded', () => {
                 setTimeout(() => {
                     const addButton = createAddBookButton();
-                    const settingsButton = createBookListSettingsButton();
+                    const newBookListButton = createNewBookListButton();
+                    const dropdownContainer = createBookListDropdown();
+                    const viewButton = createViewBookListButton();
                     
                     document.body.appendChild(addButton);
-                    document.body.appendChild(settingsButton);
+                    document.body.appendChild(newBookListButton);
+                    document.body.appendChild(dropdownContainer);
+                    document.body.appendChild(viewButton);
                 }, 1000);
             });
         } else {
             setTimeout(() => {
                 const addButton = createAddBookButton();
-                const settingsButton = createBookListSettingsButton();
+                const newBookListButton = createNewBookListButton();
+                const dropdownContainer = createBookListDropdown();
+                const viewButton = createViewBookListButton();
                 
                 document.body.appendChild(addButton);
-                document.body.appendChild(settingsButton);
+                document.body.appendChild(newBookListButton);
+                document.body.appendChild(dropdownContainer);
+                document.body.appendChild(viewButton);
             }, 1000);
         }
     }
