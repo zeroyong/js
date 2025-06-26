@@ -2,17 +2,19 @@
  * @Author: xhg
  * @Date:   2025-06-17 20:49:16
  * @Last Modified by:   xhg
- * @Last Modified time: 2025-06-26 18:54:14
+ * @Last Modified time: 2025-06-26 19:36:04
  */
 // ==UserScript==
-// @name        New script tuishujun.com
+// @name        📚书单添加小工具
 // @namespace   Violentmonkey Scripts
 // @match       https://tuishujun.com/books/*
-// @match       https://www.ypshuo.com/booklist/*
-// @grant       none
-// @version     1.1
+// @match       https://www.ypshuo.com/novel/*
+// @grant       GM_setValue
+// @grant       GM_getValue
+// @grant       GM_deleteValue
+// @version     1.2
 // @author      xhg
-// @description 2025/6/17 20:50:04
+// @description 跨域书单管理工具
 // ==/UserScript==
 
 (function() {
@@ -20,6 +22,10 @@
 
     // 当前选中的书单名称
     let currentBookListName = '我的书单';
+
+    // 统一的存储键名
+    const BOOK_LIST_STORAGE_KEY = 'cross_site_book_lists_v2';
+    const SITE_CONFIG_CACHE_KEY = 'site_config_cache_v1';
 
     // 创建优美的消息提示系统
     function createNotification(message, type = 'info', duration = 3000) {
@@ -126,152 +132,18 @@
         return notification;
     }
 
-    // 等待页面加载完成
-    function waitForElement(selector, timeout = 5000) {
-        return new Promise((resolve, reject) => {
-            const startTime = Date.now();
-            
-            const checkElement = () => {
-                const element = document.querySelector(selector);
-                if (element) {
-                    resolve(element);
-                    return;
-                }
-                
-                if (Date.now() - startTime > timeout) {
-                    reject(new Error(`等待元素 ${selector} 超时`));
-                    return;
-                }
-                
-                setTimeout(checkElement, 100);
-            };
-            
-            checkElement();
-        });
-    }
-
-    // 动态加载网站配置
-    async function loadSiteConfig() {
-        try {
-            // 使用 GitHub Raw 文件地址，请替换为你的仓库地址
-            const sourceListUrl = 'https://raw.githubusercontent.com/zeroyong/js/main/sourceBooks/source.json';
-            const sourceList = await fetch(sourceListUrl).then(res => res.json());
-            
-            const host = window.location.host;
-            const matchedSource = sourceList.find(source => host.includes(source.match));
-            
-            if (!matchedSource) {
-                console.warn('未找到匹配的网站配置');
-                return null;
-            }
-            
-            const configUrl = `https://raw.githubusercontent.com/zeroyong/js/main/sourceBooks/${matchedSource.config}`;
-            return await fetch(configUrl).then(res => res.json());
-        } catch (error) {
-            console.error('加载网站配置失败:', error);
-            return null;
-        }
-    }
-
-    // 使用配置文件提取书籍信息
-    async function extractBookInfoByConfig(config) {
-        if (!config || !config.selectors) {
-            console.error('无效的配置文件');
-            return null;
-        }
-
-        try {
-            const extractedInfo = {};
-            const extractors = config.extractors || {};
-
-            for (const [key, selector] of Object.entries(config.selectors)) {
-                const element = document.querySelector(selector);
-                if (!element) {
-                    console.warn(`未找到 ${key} 选择器: ${selector}`);
-                    extractedInfo[key] = '';
-                    continue;
-                }
-
-                const extractMethod = extractors[key] || 'textContent';
-                extractedInfo[key] = element[extractMethod]?.trim() || '';
-            }
-
-            return {
-                title: extractedInfo.title,
-                author: extractedInfo.author,
-                summary: extractedInfo.summary,
-                cover: extractedInfo.cover,
-                url: window.location.href,
-                addTime: new Date().toISOString()
-            };
-        } catch (error) {
-            console.error('提取书籍信息失败:', error);
-            return null;
-        }
-    }
-
-    // 修改原有的 extractBookInfo 函数
-    async function extractBookInfo() {
-        const siteConfig = await loadSiteConfig();
-        if (siteConfig) {
-            return await extractBookInfoByConfig(siteConfig);
-        }
-
-        // 如果没有配置文件，使用原有的硬编码提取方法
-        try {
-            const titleElement = document.querySelector('.title-box > h3');
-            const title = titleElement ? titleElement.textContent.trim() : '未知书名';
-            
-            const authorElement = document.querySelector('.row > a');
-            const author = authorElement ? authorElement.textContent.trim() : '未知作者';
-            
-            const summaryElement = document.querySelector('.book-summary');
-            const summary = summaryElement ? summaryElement.textContent.trim() : '暂无简介';
-            
-            const coverElement = document.querySelector('.left > img');
-            const cover = coverElement ? coverElement.src : '';
-            
-            return {
-                title: title,
-                author: author,
-                summary: summary,
-                cover: cover,
-                url: window.location.href,
-                addTime: new Date().toISOString()
-            };
-        } catch (error) {
-            console.error('提取书籍信息失败:', error);
-            return null;
-        }
-    }
-
-    // 获取所有书单数据
+    // 获取所有书单数据（使用 GM_setValue/GM_getValue）
     function getAllBookLists() {
         try {
-            const data = localStorage.getItem('tuishujun_booklists');
-            if (data) {
-                return JSON.parse(data);
-            } else {
-                // 兼容旧版本数据
-                const oldBookList = JSON.parse(localStorage.getItem('tuishujun_booklist') || '[]');
-                if (oldBookList.length > 0) {
-                    const newData = {
-                        "我的书单": {
-                            "书籍": oldBookList,
-                            "默认状态": true
-                        }
-                    };
-                    localStorage.setItem('tuishujun_booklists', JSON.stringify(newData));
-                    localStorage.removeItem('tuishujun_booklist'); // 删除旧数据
-                    return newData;
+            // 尝试获取 GM 存储的数据
+            const bookLists = GM_getValue(BOOK_LIST_STORAGE_KEY, {
+                "我的书单": {
+                    "书籍": [],
+                    "默认状态": true
                 }
-                return {
-                    "我的书单": {
-                        "书籍": [],
-                        "默认状态": true
-                    }
-                };
-            }
+            });
+
+            return bookLists;
         } catch (error) {
             console.error('获取书单失败:', error);
             return {
@@ -292,7 +164,7 @@
     // 保存所有书单数据
     function saveAllBookLists(bookLists) {
         try {
-            localStorage.setItem('tuishujun_booklists', JSON.stringify(bookLists));
+            GM_setValue(BOOK_LIST_STORAGE_KEY, bookLists);
         } catch (error) {
             console.error('保存书单失败:', error);
         }
@@ -304,7 +176,12 @@
         return bookList.some(book => book.url === window.location.href);
     }
 
-    // 保存到当前书单
+    // 检查书籍是否已存在（根据URL）
+    function isBookAlreadyExists(bookList, bookUrl) {
+        return bookList.some(book => book.url === bookUrl);
+    }
+
+    // 保存到当前书单（优化去重逻辑）
     function saveToCurrentBookList(bookInfo) {
         try {
             const allBookLists = getAllBookLists();
@@ -334,7 +211,7 @@
         }
     }
 
-    // 导出当前书单为JSON文件
+    // 导出当前书单为JSON文件（增加更多导出信息）
     function exportCurrentBookList() {
         try {
             const bookList = getCurrentBookList();
@@ -344,12 +221,18 @@
                 return;
             }
             
-            // 转换为导出格式
-            const exportData = bookList.map(book => ({
-                name: book.title,
-                author: book.author,
-                intro: book.summary
-            }));
+            // 转换为导出格式，增加更多元数据
+            const exportData = {
+                listName: currentBookListName,
+                exportTime: new Date().toISOString(),
+                books: bookList.map(book => ({
+                    name: book.title,
+                    author: book.author,
+                    intro: book.summary,
+                    url: book.url,
+                    addTime: book.addTime
+                }))
+            };
             
             // 创建JSON字符串
             const jsonString = JSON.stringify(exportData, null, 2);
@@ -515,7 +398,7 @@
         content.innerHTML = bookItems;
     }
 
-    // 删除书籍
+    // 删除书籍（增加跨网站兼容性）
     window.removeFromCurrentBookList = function(url) {
         if (confirm('确定要删除这本书吗？')) {
             try {
@@ -611,11 +494,22 @@
             button.innerHTML = '⏳ 处理中...';
             
             try {
-                // 等待页面元素加载完成
-                await waitForElement('.title-box > h3');
-                await waitForElement('.row > a');
-                await waitForElement('.book-summary');
-                await waitForElement('.left > img');
+                // 动态获取当前网站的选择器
+                const siteConfig = await loadSiteConfig();
+                
+                // 等待页面元素加载完成，支持多选择器
+                const selectorsToWait = siteConfig ? Object.values(siteConfig.selectors) : [
+                    '.title-box > h3', 
+                    'h1.book-name',
+                    '.row > a', 
+                    'span.text-red-500',
+                    '.book-summary', 
+                    'div.el-collapse-item__content > div',
+                    '.left > img', 
+                    'header > img'
+                ];
+                
+                await waitForElement(selectorsToWait);
                 
                 // 提取书籍信息
                 const bookInfo = await extractBookInfo();
@@ -909,6 +803,189 @@
             createNewBookList(bookListName.trim());
         }
     };
+
+    // 等待页面加载完成，支持多选择器
+    function waitForElement(selectors, timeout = 5000) {
+        return new Promise((resolve, reject) => {
+            const startTime = Date.now();
+            
+            const checkElements = () => {
+                // 支持多选择器
+                const selectorsArray = Array.isArray(selectors) ? selectors : [selectors];
+                
+                for (const selector of selectorsArray) {
+                    const element = document.querySelector(selector);
+                    if (element) {
+                        resolve(element);
+                        return;
+                    }
+                }
+                
+                if (Date.now() - startTime > timeout) {
+                    reject(new Error(`等待元素 ${selectors} 超时`));
+                    return;
+                }
+                
+                setTimeout(checkElements, 100);
+            };
+            
+            checkElements();
+        });
+    }
+
+    // 缓存网站配置
+    async function loadSiteConfig() {
+        try {
+            const host = window.location.host;
+            const sourceListUrl = 'https://raw.githubusercontent.com/zeroyong/js/main/sourceBooks/source.json';
+            
+            // 尝试获取缓存的配置
+            const cachedConfigs = GM_getValue(SITE_CONFIG_CACHE_KEY, {});
+            
+            // 获取源站点列表
+            const sourceList = await fetch(sourceListUrl).then(res => res.json());
+            const matchedSource = sourceList.find(source => host.includes(source.match));
+            
+            if (!matchedSource) {
+                console.warn('未找到匹配的网站配置');
+                return null;
+            }
+
+            // 检查是否需要更新缓存
+            const cachedConfig = cachedConfigs[matchedSource.match];
+            if (cachedConfig && cachedConfig.version === matchedSource.version) {
+                console.log('使用缓存的网站配置');
+                return cachedConfig.config;
+            }
+
+            // 加载最新配置
+            const configUrl = `https://raw.githubusercontent.com/zeroyong/js/main/sourceBooks/${matchedSource.config}`;
+            const config = await fetch(configUrl).then(res => res.json());
+
+            // 更新缓存
+            cachedConfigs[matchedSource.match] = {
+                version: matchedSource.version,
+                config: config,
+                timestamp: Date.now()
+            };
+            GM_setValue(SITE_CONFIG_CACHE_KEY, cachedConfigs);
+
+            console.log('加载并缓存新的网站配置');
+            return config;
+        } catch (error) {
+            console.error('加载网站配置失败:', error);
+            return null;
+        }
+    }
+
+    // 使用配置文件提取书籍信息
+    async function extractBookInfoByConfig(config) {
+        if (!config || !config.selectors) {
+            console.error('无效的配置文件');
+            return null;
+        }
+
+        try {
+            const extractedInfo = {};
+            const extractors = config.extractors || {};
+
+            console.log('当前网站配置:', config);
+
+            for (const [key, selector] of Object.entries(config.selectors)) {
+                const element = document.querySelector(selector);
+                
+                console.log(`查找 ${key} 元素:`, {
+                    selector: selector,
+                    element: element
+                });
+
+                if (!element) {
+                    console.warn(`未找到 ${key} 选择器: ${selector}`);
+                    extractedInfo[key] = '';
+                    continue;
+                }
+
+                const extractMethod = extractors[key] || 'textContent';
+                extractedInfo[key] = element[extractMethod]?.trim() || '';
+                
+                console.log(`提取 ${key}:`, extractedInfo[key]);
+            }
+
+            return {
+                title: extractedInfo.title,
+                author: extractedInfo.author,
+                summary: extractedInfo.summary,
+                cover: extractedInfo.cover,
+                url: window.location.href,
+                addTime: new Date().toISOString()
+            };
+        } catch (error) {
+            console.error('提取书籍信息失败:', error);
+            return null;
+        }
+    }
+
+    // 修改原有的 extractBookInfo 函数
+    async function extractBookInfo() {
+        const siteConfig = await loadSiteConfig();
+        
+        console.log('获取到的站点配置:', siteConfig);
+        
+        if (siteConfig) {
+            return await extractBookInfoByConfig(siteConfig);
+        }
+
+        // 如果没有配置文件，使用原有的硬编码提取方法
+        try {
+            console.warn('使用默认提取方法');
+            
+            const titleElement = document.querySelector('.title-box > h3, h1.book-name');
+            const title = titleElement ? titleElement.textContent.trim() : '未知书名';
+            
+            const authorElement = document.querySelector('.row > a, span.text-red-500');
+            const author = authorElement ? authorElement.textContent.trim() : '未知作者';
+            
+            const summaryElement = document.querySelector('.book-summary, div.el-collapse-item__content > div');
+            const summary = summaryElement ? summaryElement.textContent.trim() : '暂无简介';
+            
+            const coverElement = document.querySelector('.left > img, header > img');
+            const cover = coverElement ? coverElement.src : '';
+            
+            return {
+                title: title,
+                author: author,
+                summary: summary,
+                cover: cover,
+                url: window.location.href,
+                addTime: new Date().toISOString()
+            };
+        } catch (error) {
+            console.error('提取书籍信息失败:', error);
+            return null;
+        }
+    }
+
+    // 清理过期的配置缓存（可选）
+    function cleanConfigCache() {
+        try {
+            const cachedConfigs = GM_getValue(SITE_CONFIG_CACHE_KEY, {});
+            const currentTime = Date.now();
+            
+            // 删除超过30天的缓存
+            Object.keys(cachedConfigs).forEach(key => {
+                if (currentTime - (cachedConfigs[key].timestamp || 0) > 30 * 24 * 60 * 60 * 1000) {
+                    delete cachedConfigs[key];
+                }
+            });
+
+            GM_setValue(SITE_CONFIG_CACHE_KEY, cachedConfigs);
+        } catch (error) {
+            console.error('清理配置缓存失败:', error);
+        }
+    }
+
+    // 在脚本初始化时清理缓存
+    cleanConfigCache();
 
     // 主函数
     function init() {

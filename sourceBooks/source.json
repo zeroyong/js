@@ -2,11 +2,13 @@
     {
         "name": "推书君",
         "match": "tuishujun.com",
-        "config": "tuishujun.json"
+        "config": "tuishujun.json",
+        "version": "1.0.0"
     },
     {
         "name": "优书网",
         "match": "ypshuo.com",
-        "config": "ypshuo.json"
+        "config": "ypshuo.json",
+        "version": "1.0.0"
     }
 ] 
