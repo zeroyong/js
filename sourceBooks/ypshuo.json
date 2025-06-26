@@ -1,0 +1,16 @@
+{
+    "name": "优书网",
+    "match": "ypshuo.com",
+    "selectors": {
+        "title": "h1.book-name",
+        "author": "span.text-red-500", 
+        "summary": "div.el-collapse-item__content > div",
+        "cover": "header > img"
+    },
+    "extractors": {
+        "title": "textContent",
+        "author": "textContent", 
+        "summary": "textContent",
+        "cover": "src"
+    }
+} 

@@ -2,12 +2,13 @@
  * @Author: xhg
  * @Date:   2025-06-17 20:49:16
  * @Last Modified by:   xhg
- * @Last Modified time: 2025-06-26 18:46:19
+ * @Last Modified time: 2025-06-26 18:54:14
  */
 // ==UserScript==
 // @name        New script tuishujun.com
 // @namespace   Violentmonkey Scripts
 // @match       https://tuishujun.com/books/*
+// @match       https://www.ypshuo.com/booklist/*
 // @grant       none
 // @version     1.1
 // @author      xhg
