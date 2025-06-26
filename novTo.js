@@ -2,12 +2,13 @@
  * @Author: xhg
  * @Date:   2025-06-17 21:19:10
  * @Last Modified by:   xhg
- * @Last Modified time: 2025-06-17 21:20:30
+ * @Last Modified time: 2025-06-26 17:47:05
  */
 // ==UserScript==
 // @name        自动新跳转到新的标签页 并打开
 // @namespace   Violentmonkey Scripts
 // @match       https://tuishujun.com/books/2*
+// @match       https://www.ypshuo.com/booklist/*
 // @grant       none
 // @version     1.0
 // @author      xhg
