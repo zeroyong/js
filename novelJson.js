@@ -2,14 +2,14 @@
  * @Author: xhg
  * @Date:   2025-06-17 20:49:16
  * @Last Modified by:   xhg
- * @Last Modified time: 2025-06-22 11:02:03
+ * @Last Modified time: 2025-06-26 18:46:19
  */
 // ==UserScript==
 // @name        New script tuishujun.com
 // @namespace   Violentmonkey Scripts
 // @match       https://tuishujun.com/books/*
 // @grant       none
-// @version     1.0
+// @version     1.1
 // @author      xhg
 // @description 2025/6/17 20:50:04
 // ==/UserScript==
@@ -153,7 +153,7 @@
     async function loadSiteConfig() {
         try {
             // 使用 GitHub Raw 文件地址，请替换为你的仓库地址
-            const sourceListUrl = 'https://raw.githubusercontent.com/你的用户名/你的仓库名/main/sourceBooks/source.json';
+            const sourceListUrl = 'https://raw.githubusercontent.com/zeroyong/js/main/sourceBooks/source.json';
             const sourceList = await fetch(sourceListUrl).then(res => res.json());
             
             const host = window.location.host;
@@ -164,7 +164,7 @@
                 return null;
             }
             
-            const configUrl = `https://raw.githubusercontent.com/你的用户名/你的仓库名/main/sourceBooks/${matchedSource.config}`;
+            const configUrl = `https://raw.githubusercontent.com/zeroyong/js/main/sourceBooks/${matchedSource.config}`;
             return await fetch(configUrl).then(res => res.json());
         } catch (error) {
             console.error('加载网站配置失败:', error);
