@@ -617,7 +617,7 @@
                 await waitForElement('.left > img');
                 
                 // 提取书籍信息
-                const bookInfo = await extractBookInfo();
+                const bookInfo = extractBookInfo();
                 
                 if (bookInfo) {
                     // 保存到当前书单

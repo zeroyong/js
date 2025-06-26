@@ -1,0 +1,16 @@
+{
+    "name": "推书君",
+    "match": "tuishujun.com",
+    "selectors": {
+        "title": ".title-box > h3",
+        "author": ".row > a", 
+        "summary": ".book-summary",
+        "cover": ".left > img"
+    },
+    "extractors": {
+        "title": "textContent",
+        "author": "textContent", 
+        "summary": "textContent",
+        "cover": "src"
+    }
+} 
