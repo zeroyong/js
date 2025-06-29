@@ -10,5 +10,11 @@
         "match": "ypshuo.com",
         "config": "ypshuo.json",
         "version": "1.0.0"
+    },
+    {
+        "name": "优书网",
+        "match": "www.youshu.me",
+        "config": "youshu.json",
+        "version": "1.0.0"
     }
 ] 

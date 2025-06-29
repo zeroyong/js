@@ -2,7 +2,7 @@
 # @Author: xhg
 # @Date:   2025-06-18 22:06:42
 # @Last Modified by:   xhg
-# @Last Modified time: 2025-06-19 21:50:53
+# @Last Modified time: 2025-06-26 21:53:32
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -274,7 +274,7 @@ class BookInfoWidget(QWidget):
         title_label.setStyleSheet("""
             font-weight: bold; 
             font-size: 16px; 
-            color: #212529;
+            color: #212529; 
             padding: 5px 0;
         """)
         layout.addWidget(title_label)
@@ -321,8 +321,9 @@ class BookUploaderQt(QMainWindow):
     def __init__(self):
         super().__init__()
         # 强制任务栏图标为icon.png
-        if os.path.exists("icon.png"):
-            QApplication.setWindowIcon(QIcon("icon.png"))
+        if os.path.exists("icon.ico"):
+            QApplication.setWindowIcon(QIcon("icon.ico"))
+            # 对于某些系统，还需要设置应用图标为高DPI版本
         self.upload_thread = None
         self.current_file_path = None
         self.upload_result = None
@@ -662,7 +663,7 @@ class BookUploaderQt(QMainWindow):
         self.file_info_label.setText(f"📄 已选择: {file_name}\n📊 文件大小: {file_size:,} 字节")
     
     def load_file_info(self, file_path):
-        """加载文件信息"""
+        """加载文件信息，支持新旧两种数据格式"""
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
@@ -670,25 +671,32 @@ class BookUploaderQt(QMainWindow):
             # 清空书籍列表
             self.books_list.clear()
             
-            if isinstance(data, list):
+            # 处理新的数据格式
+            if isinstance(data, dict) and 'books' in data:
+                books = data.get('books', [])
+                list_name = data.get('listName', '未命名书单')
+                self.books_count_label.setText(f"📚 {list_name} - 共 {len(books)} 本书籍")
+            
+            # 处理旧的数据格式（直接是书籍列表）
+            elif isinstance(data, list):
                 books = data
                 self.books_count_label.setText(f"📚 共 {len(books)} 本书籍")
-                
-                # 添加书籍到列表
-                for book in books:
-                    book_widget = BookInfoWidget(book)
-                    item = QListWidgetItem()
-                    item.setSizeHint(book_widget.sizeHint())
-                    self.books_list.addItem(item)
-                    self.books_list.setItemWidget(item, book_widget)
+            
+            # 单本书籍的情况
+            elif isinstance(data, dict) and 'name' in data:
+                books = [data]
+                self.books_count_label.setText("📚 1 本书籍")
+            
             else:
-                # 单个书籍
-                book_widget = BookInfoWidget(data)
+                raise ValueError("无法识别的文件格式")
+            
+            # 添加书籍到列表
+            for book in books:
+                book_widget = BookInfoWidget(book)
                 item = QListWidgetItem()
                 item.setSizeHint(book_widget.sizeHint())
                 self.books_list.addItem(item)
                 self.books_list.setItemWidget(item, book_widget)
-                self.books_count_label.setText("📚 1 本书籍")
                 
         except Exception as e:
             self.books_count_label.setText(f"❌ 加载失败: {str(e)}")

@@ -1,0 +1,16 @@
+{
+    "match": "www.youshu.me",
+    "version": "1.0",
+    "selectors": {
+        "title": ".divbox span:first-child",
+        "author": ".divbox span:nth-child(2)",
+        "summary": ".tabvalue div",
+        "cover": ".divbox img"
+    },
+    "extractors": {
+        "title": "textContent",
+        "author": "textContent", 
+        "summary": "textContent",
+        "cover": "src"
+    }
+} 

@@ -2,13 +2,14 @@
  * @Author: xhg
  * @Date:   2025-06-17 20:49:16
  * @Last Modified by:   xhg
- * @Last Modified time: 2025-06-26 19:36:04
+ * @Last Modified time: 2025-06-28 07:29:15
  */
 // ==UserScript==
 // @name        📚书单添加小工具
 // @namespace   Violentmonkey Scripts
 // @match       https://tuishujun.com/books/*
 // @match       https://www.ypshuo.com/novel/*
+// @match       https://www.youshu.me/book*
 // @grant       GM_setValue
 // @grant       GM_getValue
 // @grant       GM_deleteValue
@@ -211,31 +212,32 @@
         }
     }
 
-    // 导出当前书单为JSON文件（增加更多导出信息）
+    // 导出当前书单为JSON文件（简化导出逻辑）
     function exportCurrentBookList() {
         try {
             const bookList = getCurrentBookList();
+            
+            console.log('导出书单信息:', {
+                listName: currentBookListName,
+                bookCount: bookList.length
+            });
             
             if (bookList.length === 0) {
                 createNotification('当前书单为空，没有可导出的内容！', 'warning');
                 return;
             }
             
-            // 转换为导出格式，增加更多元数据
-            const exportData = {
-                listName: currentBookListName,
-                exportTime: new Date().toISOString(),
-                books: bookList.map(book => ({
-                    name: book.title,
-                    author: book.author,
-                    intro: book.summary,
-                    url: book.url,
-                    addTime: book.addTime
-                }))
-            };
+            // 直接导出书籍数组，不再包裹在 books 对象中
+            const exportData = bookList.map(book => ({
+                name: book.title,
+                author: book.author,
+                intro: book.summary
+            }));
             
             // 创建JSON字符串
             const jsonString = JSON.stringify(exportData, null, 2);
+            
+            console.log('导出的JSON内容:', jsonString);
             
             // 创建下载链接
             const blob = new Blob([jsonString], { type: 'application/json' });
@@ -384,7 +386,7 @@
                         </div>
                     </div>
                     <div style="margin-left: 8px;">
-                        <button onclick="event.stopPropagation(); removeFromCurrentBookList('${book.url}')" 
+                        <button onclick="event.stopPropagation(); window.removeFromCurrentBookList('${book.url}')" 
                                 style="background: #f8f9fa; color: #6c757d; border: 1px solid #dee2e6; padding: 4px 8px; border-radius: 3px; font-size: 11px; cursor: pointer; transition: all 0.2s;"
                                 onmouseover="this.style.background='#e9ecef'; this.style.color='#495057';"
                                 onmouseout="this.style.background='#f8f9fa'; this.style.color='#6c757d';">
@@ -398,14 +400,25 @@
         content.innerHTML = bookItems;
     }
 
-    // 删除书籍（增加跨网站兼容性）
-    window.removeFromCurrentBookList = function(url) {
+    // 删除书籍（跨网站兼容）
+    function removeFromCurrentBookList(url) {
+        console.log('尝试删除书籍:', url);
+        console.log('当前书单:', currentBookListName);
+        
         if (confirm('确定要删除这本书吗？')) {
             try {
                 const allBookLists = getAllBookLists();
                 const currentList = allBookLists[currentBookListName];
+                
+                console.log('删除前书单内容:', currentList);
+                
                 if (currentList) {
+                    const initialLength = currentList.书籍.length;
                     currentList.书籍 = currentList.书籍.filter(book => book.url !== url);
+                    
+                    console.log('删除后书单内容:', currentList);
+                    console.log(`删除书籍数量: ${initialLength - currentList.书籍.length}`);
+                    
                     saveAllBookLists(allBookLists);
                     
                     // 更新显示
@@ -422,13 +435,16 @@
                     }
                     
                     createNotification('删除成功！', 'success');
+                } else {
+                    console.warn('未找到当前书单');
+                    createNotification('删除失败：未找到书单', 'error');
                 }
             } catch (error) {
                 console.error('删除失败:', error);
                 createNotification('删除失败，请重试！', 'error');
             }
         }
-    };
+    }
 
     // 更新添加按钮状态
     function updateAddButtonState() {
@@ -494,10 +510,9 @@
             button.innerHTML = '⏳ 处理中...';
             
             try {
-                // 动态获取当前网站的选择器
+                // 等待页面元素加载完成，支持多选择器
                 const siteConfig = await loadSiteConfig();
                 
-                // 等待页面元素加载完成，支持多选择器
                 const selectorsToWait = siteConfig ? Object.values(siteConfig.selectors) : [
                     '.title-box > h3', 
                     'h1.book-name',
@@ -521,11 +536,12 @@
                         button.innerHTML = result.isUpdate ? '🔄 已更新' : '✅ 已添加';
                         button.style.background = '#28a745';
                         
-                        // 使用优美提示
-                        createNotification(result.message, 'success');
+                        // 使用优美提示，显示当前书单名称
+                        createNotification(`已添加到书单：${currentBookListName}`, 'success');
                         
                         // 调试信息
                         console.log('书籍添加成功:', bookInfo.title);
+                        console.log('当前书单:', currentBookListName);
                         console.log('当前书单数量:', getCurrentBookList().length);
                         
                         setTimeout(() => {
@@ -622,7 +638,27 @@
 
     // 切换书单
     function switchBookList(name) {
+        console.log(`切换书单: 从 ${currentBookListName} 到 ${name}`);
+        
+        // 获取所有书单
+        const allBookLists = getAllBookLists();
+        
+        // 确保新书单存在
+        if (!allBookLists[name]) {
+            createNotification('书单不存在！', 'error');
+            return;
+        }
+        
+        // 更新当前书单名称并持久化
         currentBookListName = name;
+        
+        // 更新所有书单的默认状态
+        Object.keys(allBookLists).forEach(listName => {
+            allBookLists[listName].默认状态 = (listName === name);
+        });
+        
+        // 保存更新后的书单配置
+        saveAllBookLists(allBookLists);
         
         // 更新添加按钮状态
         updateAddButtonState();
@@ -636,7 +672,7 @@
         }
         
         createNotification(`已切换到书单：${currentBookListName}`, 'info');
-        console.log('切换到书单:', currentBookListName);
+        console.log('当前书单:', currentBookListName);
     }
 
     // 创建新书单
@@ -661,47 +697,12 @@
 
     // 打开书单管理面板
     window.openBookListManager = function() {
+        console.log('打开书单管理面板');
+        
         const allBookLists = getAllBookLists();
         const bookListNames = Object.keys(allBookLists);
         
-        let managerHtml = `
-            <div style="padding: 20px; background: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); max-width: 500px; margin: 50px auto;">
-                <h3 style="margin-top: 0; color: #333;">📚 书单管理</h3>
-                <div style="max-height: 300px; overflow-y: auto; margin-bottom: 20px;">
-        `;
-        
-        bookListNames.forEach(name => {
-            const bookCount = allBookLists[name].书籍.length;
-            const isDefault = allBookLists[name].默认状态;
-            const isCurrent = name === currentBookListName;
-            
-            managerHtml += `
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #f0f0f0; ${isCurrent ? 'background: #e3f2fd;' : ''}">
-                    <div>
-                        <strong>${name}</strong> 
-                        <span style="color: #666; font-size: 12px;">书籍: ${bookCount}</span>
-                        ${isDefault ? '<span style="color: #28a745; font-size: 12px;">(默认)</span>' : ''}
-                        ${isCurrent ? '<span style="color: #007bff; font-size: 12px;">(当前)</span>' : ''}
-                    </div>
-                    <div>
-                        <button onclick="switchToBookList('${name}')" style="background: #007bff; color: white; border: none; padding: 4px 8px; border-radius: 3px; margin-right: 5px; cursor: pointer; font-size: 12px;">切换</button>
-                        <button onclick="renameBookList('${name}')" style="background: #ffc107; color: white; border: none; padding: 4px 8px; border-radius: 3px; margin-right: 5px; cursor: pointer; font-size: 12px;">重命名</button>
-                        <button onclick="deleteBookList('${name}')" style="background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 12px;">删除</button>
-                    </div>
-                </div>
-            `;
-        });
-        
-        managerHtml += `
-                </div>
-                <div style="text-align: center;">
-                    <button onclick="createNewBookListFromManager()" style="background: #28a745; color: white; border: none; padding: 8px 16px; border-radius: 5px; margin-right: 10px; cursor: pointer;">新建书单</button>
-                    <button onclick="closeBookListManager()" style="background: #6c757d; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer;">关闭</button>
-                </div>
-            </div>
-        `;
-        
-        // 创建模态框
+        // 创建模态框容器
         const modal = document.createElement('div');
         modal.id = 'booklist-manager-modal';
         modal.style.cssText = `
@@ -715,54 +716,248 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            opacity: 1;
+            transition: opacity 0.3s ease;
         `;
-        
-        modal.innerHTML = managerHtml;
+
+        // 创建模态框内容
+        const modalContent = document.createElement('div');
+        modalContent.style.cssText = `
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            max-width: 500px;
+            width: 90%;
+            max-height: 80%;
+            overflow: auto;
+            padding: 20px;
+            position: relative;
+        `;
+
+        // 关闭按钮
+        const closeButton = document.createElement('button');
+        closeButton.innerHTML = '✖️';
+        closeButton.style.cssText = `
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: #666;
+        `;
+        closeButton.addEventListener('click', () => {
+            console.log('点击关闭按钮');
+            window.closeBookListManager();
+        });
+
+        // 标题
+        const title = document.createElement('h3');
+        title.textContent = '📚 书单管理';
+        title.style.marginTop = '0';
+        title.style.color = '#333';
+
+        // 书单列表容器
+        const listContainer = document.createElement('div');
+        listContainer.style.maxHeight = '300px';
+        listContainer.style.overflowY = 'auto';
+        listContainer.style.marginBottom = '20px';
+
+        // 生成书单列表
+        bookListNames.forEach(name => {
+            const bookCount = allBookLists[name].书籍.length;
+            const isDefault = allBookLists[name].默认状态;
+            const isCurrent = name === currentBookListName;
+
+            const listItem = document.createElement('div');
+            listItem.style.cssText = `
+                display: flex; 
+                justify-content: space-between; 
+                align-items: center; 
+                padding: 10px; 
+                border-bottom: 1px solid #f0f0f0;
+                ${isCurrent ? 'background: #e3f2fd;' : ''}
+            `;
+
+            // 书单信息
+            const bookListInfo = document.createElement('div');
+            bookListInfo.innerHTML = `
+                <strong>${name}</strong> 
+                <span style="color: #666; font-size: 12px;">书籍: ${bookCount}</span>
+                ${isDefault ? '<span style="color: #28a745; font-size: 12px;">(默认)</span>' : ''}
+                ${isCurrent ? '<span style="color: #007bff; font-size: 12px;">(当前)</span>' : ''}
+            `;
+
+            // 操作按钮容器
+            const actionContainer = document.createElement('div');
+
+            // 切换按钮
+            const switchButton = document.createElement('button');
+            switchButton.textContent = '切换';
+            switchButton.style.cssText = `
+                background: #007bff; 
+                color: white; 
+                border: none; 
+                padding: 4px 8px; 
+                border-radius: 3px; 
+                margin-right: 5px; 
+                cursor: pointer; 
+                font-size: 12px;
+            `;
+            switchButton.addEventListener('click', () => {
+                console.log(`切换到书单: ${name}`);
+                window.switchToBookList(name);
+            });
+
+            // 重命名按钮
+            const renameButton = document.createElement('button');
+            renameButton.textContent = '重命名';
+            renameButton.style.cssText = `
+                background: #ffc107; 
+                color: white; 
+                border: none; 
+                padding: 4px 8px; 
+                border-radius: 3px; 
+                margin-right: 5px; 
+                cursor: pointer; 
+                font-size: 12px;
+            `;
+            renameButton.addEventListener('click', () => {
+                console.log(`重命名书单: ${name}`);
+                window.renameBookList(name);
+            });
+
+            // 删除按钮
+            const deleteButton = document.createElement('button');
+            deleteButton.textContent = '删除';
+            deleteButton.style.cssText = `
+                background: #dc3545; 
+                color: white; 
+                border: none; 
+                padding: 4px 8px; 
+                border-radius: 3px; 
+                cursor: pointer; 
+                font-size: 12px;
+            `;
+            deleteButton.addEventListener('click', () => {
+                console.log(`删除书单: ${name}`);
+                window.deleteBookList(name);
+            });
+
+            actionContainer.appendChild(switchButton);
+            actionContainer.appendChild(renameButton);
+            actionContainer.appendChild(deleteButton);
+
+            listItem.appendChild(bookListInfo);
+            listItem.appendChild(actionContainer);
+            listContainer.appendChild(listItem);
+        });
+
+        // 底部按钮容器
+        const buttonContainer = document.createElement('div');
+        buttonContainer.style.textAlign = 'center';
+
+        // 新建书单按钮
+        const newListButton = document.createElement('button');
+        newListButton.textContent = '新建书单';
+        newListButton.style.cssText = `
+            background: #28a745; 
+            color: white; 
+            border: none; 
+            padding: 8px 16px; 
+            border-radius: 5px; 
+            margin-right: 10px; 
+            cursor: pointer;
+        `;
+        newListButton.addEventListener('click', () => {
+            console.log('点击新建书单');
+            window.createNewBookListFromManager();
+        });
+
+        buttonContainer.appendChild(newListButton);
+
+        // 组装模态框
+        modalContent.appendChild(closeButton);
+        modalContent.appendChild(title);
+        modalContent.appendChild(listContainer);
+        modalContent.appendChild(buttonContainer);
+        modal.appendChild(modalContent);
+
+        // 点击遮罩层关闭
         modal.addEventListener('click', (e) => {
+            console.log('点击模态框背景');
             if (e.target === modal) {
-                closeBookListManager();
+                window.closeBookListManager();
             }
         });
-        
+
+        // 阻止内容区域的点击事件冒泡
+        modalContent.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+
+        // 添加到文档
         document.body.appendChild(modal);
+
+        console.log('书单管理面板已创建');
     };
 
     // 关闭书单管理面板
     window.closeBookListManager = function() {
+        console.log('尝试关闭书单管理面板');
         const modal = document.getElementById('booklist-manager-modal');
         if (modal) {
-            modal.remove();
+            console.log('找到模态框，准备移除');
+            modal.style.opacity = '0';
+            setTimeout(() => {
+                if (modal.parentNode) {
+                    modal.parentNode.removeChild(modal);
+                    console.log('模态框已移除');
+                }
+            }, 300);
+        } else {
+            console.warn('未找到书单管理面板');
         }
     };
 
     // 切换到指定书单
     window.switchToBookList = function(name) {
         switchBookList(name);
-        closeBookListManager();
+        window.closeBookListManager();
     };
 
     // 重命名书单
     window.renameBookList = function(oldName) {
-        const newName = prompt(`请输入"${oldName}"的新名称：`);
-        if (newName && newName.trim() && newName.trim() !== oldName) {
-            const allBookLists = getAllBookLists();
-            
-            if (allBookLists[newName.trim()]) {
-                createNotification('书单名称已存在，请使用其他名称！', 'warning');
-                return;
+        customPrompt({
+            title: `重命名书单：${oldName}`,
+            placeholder: '请输入新的书单名称',
+            required: true,
+            maxLength: 10,
+            minLength: 1,
+            validate: (value) => {
+                const allBookLists = getAllBookLists();
+                if (allBookLists[value]) {
+                    return '书单名称已存在，请使用其他名称';
+                }
+                return true;
             }
-            
-            allBookLists[newName.trim()] = allBookLists[oldName];
-            delete allBookLists[oldName];
-            saveAllBookLists(allBookLists);
-            
-            if (currentBookListName === oldName) {
-                currentBookListName = newName.trim();
+        }).then(newName => {
+            if (newName) {
+                const allBookLists = getAllBookLists();
+                
+                allBookLists[newName] = allBookLists[oldName];
+                delete allBookLists[oldName];
+                saveAllBookLists(allBookLists);
+                
+                if (currentBookListName === oldName) {
+                    currentBookListName = newName;
+                }
+                
+                window.closeBookListManager();
+                createNotification('重命名成功！', 'success');
             }
-            
-            closeBookListManager();
-            createNotification('重命名成功！', 'success');
-        }
+        });
     };
 
     // 删除书单
@@ -790,18 +985,32 @@
                 }
             }
             
-            closeBookListManager();
+            window.closeBookListManager();
             createNotification('删除成功！', 'success');
         }
     };
 
     // 从管理面板新建书单
     window.createNewBookListFromManager = function() {
-        closeBookListManager();
-        const bookListName = prompt('请输入新书单名称：');
-        if (bookListName && bookListName.trim()) {
-            createNewBookList(bookListName.trim());
-        }
+        customPrompt({
+            title: '新建书单',
+            placeholder: '请输入书单名称',
+            required: true,
+            maxLength: 10,
+            minLength: 1,
+            validate: (value) => {
+                const allBookLists = getAllBookLists();
+                if (allBookLists[value]) {
+                    return '书单名称已存在，请使用其他名称';
+                }
+                return true;
+            }
+        }).then(bookListName => {
+            if (bookListName) {
+                createNewBookList(bookListName);
+                window.closeBookListManager();
+            }
+        });
     };
 
     // 等待页面加载完成，支持多选择器
@@ -987,8 +1196,258 @@
     // 在脚本初始化时清理缓存
     cleanConfigCache();
 
+    // 创建自定义输入弹窗
+    function customPrompt(options) {
+        return new Promise((resolve, reject) => {
+            // 创建模态框容器
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0,0,0,0.5);
+                z-index: 10003;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                opacity: 0;
+                transition: opacity 0.3s ease;
+            `;
+
+            // 弹窗内容容器
+            const modalContent = document.createElement('div');
+            modalContent.style.cssText = `
+                background: white;
+                border-radius: 12px;
+                box-shadow: 0 15px 50px rgba(0,0,0,0.2);
+                width: 90%;
+                max-width: 400px;
+                padding: 20px;
+                text-align: center;
+                position: relative;
+                transform: scale(0.7);
+                transition: all 0.3s ease;
+                opacity: 0;
+            `;
+
+            // 标题
+            const title = document.createElement('h3');
+            title.textContent = options.title || '输入';
+            title.style.cssText = `
+                margin-top: 0;
+                margin-bottom: 15px;
+                color: #333;
+                font-size: 18px;
+            `;
+
+            // 输入框
+            const input = document.createElement('input');
+            input.type = options.type || 'text';
+            input.placeholder = options.placeholder || '请输入';
+            input.style.cssText = `
+                width: 100%;
+                padding: 10px;
+                margin-bottom: 15px;
+                border: 1px solid #ddd;
+                border-radius: 6px;
+                font-size: 16px;
+                box-sizing: border-box;
+            `;
+
+            // 错误提示
+            const errorMsg = document.createElement('div');
+            errorMsg.style.cssText = `
+                color: #dc3545;
+                font-size: 14px;
+                margin-bottom: 10px;
+                height: 20px;
+                opacity: 0;
+                transition: opacity 0.3s ease;
+            `;
+
+            // 按钮容器
+            const buttonContainer = document.createElement('div');
+            buttonContainer.style.cssText = `
+                display: flex;
+                justify-content: space-between;
+            `;
+
+            // 取消按钮
+            const cancelButton = document.createElement('button');
+            cancelButton.textContent = '取消';
+            cancelButton.style.cssText = `
+                flex: 1;
+                margin-right: 10px;
+                padding: 10px;
+                background: #6c757d;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                cursor: pointer;
+                transition: background 0.3s ease;
+            `;
+            cancelButton.addEventListener('mouseenter', () => {
+                cancelButton.style.background = '#555';
+            });
+            cancelButton.addEventListener('mouseleave', () => {
+                cancelButton.style.background = '#6c757d';
+            });
+
+            // 确认按钮
+            const confirmButton = document.createElement('button');
+            confirmButton.textContent = '确认';
+            confirmButton.style.cssText = `
+                flex: 1;
+                padding: 10px;
+                background: #007bff;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                cursor: pointer;
+                transition: background 0.3s ease;
+            `;
+            confirmButton.addEventListener('mouseenter', () => {
+                confirmButton.style.background = '#0056b3';
+            });
+            confirmButton.addEventListener('mouseleave', () => {
+                confirmButton.style.background = '#007bff';
+            });
+
+            // 输入验证
+            function validateInput() {
+                const value = input.value.trim();
+                
+                // 清空之前的错误
+                errorMsg.textContent = '';
+                errorMsg.style.opacity = '0';
+
+                // 非空验证
+                if (options.required && !value) {
+                    errorMsg.textContent = '输入不能为空';
+                    errorMsg.style.opacity = '1';
+                    return false;
+                }
+
+                // 最大长度验证
+                if (options.maxLength && value.length > options.maxLength) {
+                    errorMsg.textContent = `长度不能超过 ${options.maxLength} 个字符`;
+                    errorMsg.style.opacity = '1';
+                    return false;
+                }
+
+                // 最小长度验证
+                if (options.minLength && value.length < options.minLength) {
+                    errorMsg.textContent = `长度不能少于 ${options.minLength} 个字符`;
+                    errorMsg.style.opacity = '1';
+                    return false;
+                }
+
+                // 自定义验证函数
+                if (options.validate && typeof options.validate === 'function') {
+                    const customValidation = options.validate(value);
+                    if (customValidation !== true) {
+                        errorMsg.textContent = customValidation || '输入不符合要求';
+                        errorMsg.style.opacity = '1';
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+
+            // 确认按钮事件
+            confirmButton.addEventListener('click', () => {
+                if (validateInput()) {
+                    closeModal(true);
+                }
+            });
+
+            // 取消按钮事件
+            cancelButton.addEventListener('click', () => {
+                closeModal(false);
+            });
+
+            // 关闭模态框
+            function closeModal(confirmed) {
+                modal.style.opacity = '0';
+                modalContent.style.transform = 'scale(0.7)';
+                setTimeout(() => {
+                    document.body.removeChild(modal);
+                    if (confirmed) {
+                        resolve(input.value.trim());
+                    } else {
+                        resolve(null);
+                    }
+                }, 300);
+            }
+
+            // 回车确认
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    if (validateInput()) {
+                        closeModal(true);
+                    }
+                }
+            });
+
+            // 组装模态框
+            buttonContainer.appendChild(cancelButton);
+            buttonContainer.appendChild(confirmButton);
+
+            modalContent.appendChild(title);
+            modalContent.appendChild(input);
+            modalContent.appendChild(errorMsg);
+            modalContent.appendChild(buttonContainer);
+
+            modal.appendChild(modalContent);
+            document.body.appendChild(modal);
+
+            // 显示动画
+            requestAnimationFrame(() => {
+                modal.style.opacity = '1';
+                modalContent.style.transform = 'scale(1)';
+                modalContent.style.opacity = '1';
+                input.focus();
+            });
+
+            // 点击遮罩层关闭
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    closeModal(false);
+                }
+            });
+
+            // 阻止内容区域点击事件冒泡
+            modalContent.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+        });
+    }
+
+    // 初始化函数：确保加载正确的默认书单
+    function initializeBookList() {
+        const allBookLists = getAllBookLists();
+        const defaultBookList = Object.keys(allBookLists).find(name => allBookLists[name].默认状态);
+        
+        if (defaultBookList) {
+            currentBookListName = defaultBookList;
+            console.log('初始化默认书单:', currentBookListName);
+        } else {
+            // 如果没有默认书单，创建一个
+            createNewBookList('我的书单');
+        }
+    }
+
     // 主函数
     function init() {
+        // 初始化书单
+        initializeBookList();
+        
+        // 将 removeFromCurrentBookList 绑定到全局
+        window.removeFromCurrentBookList = removeFromCurrentBookList;
+        
         // 等待页面基本结构加载完成
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => {
