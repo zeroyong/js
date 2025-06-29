@@ -16,5 +16,11 @@
         "match": "www.youshu.me",
         "config": "youshu.json",
         "version": "1.0.0"
+    },
+    {
+        "name": "起点图",
+        "match": "www.qidiantu.com",
+        "config": "qidiantu.json",
+        "version": "1.0.0"
     }
 ] 

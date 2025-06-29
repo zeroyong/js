@@ -1,0 +1,16 @@
+{
+    "name": "起点图",
+    "version": "1.0.0",
+    "selectors": {
+        "title": ".media-left img[alt]",
+        "author": ".media-body a:nth-child(2)",
+        "summary": ".panel-body p",
+        "cover": ".media-left img"
+    },
+    "extractors": {
+        "title": "alt",
+        "author": "textContent",
+        "summary": "textContent",
+        "cover": "src"
+    }
+} 
