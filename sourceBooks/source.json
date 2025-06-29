@@ -21,6 +21,6 @@
         "name": "起点图",
         "match": "www.qidiantu.com",
         "config": "qidiantu.json",
-        "version": "1.0.0"
+        "version": "1.0.1"
     }
 ] 
