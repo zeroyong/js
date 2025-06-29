@@ -3,7 +3,7 @@
     "version": "1.0.0",
     "selectors": {
         "title": ".media-left img[alt]",
-        "author": ".media-body a:nth-child(2)",
+        "author": ".media-body a:nth-child(3)",
         "summary": ".panel-body p",
         "cover": ".media-left img"
     },

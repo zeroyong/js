@@ -2,7 +2,7 @@
  * @Author: xhg
  * @Date:   2025-06-17 20:49:16
  * @Last Modified by:   xhg
- * @Last Modified time: 2025-06-29 12:17:36
+ * @Last Modified time: 2025-06-29 14:00:52
  */
 // ==UserScript==
 // @name        📚书单添加小工具
@@ -299,7 +299,7 @@
                 </div>
                 <div style="flex: 1; min-width: 0;">
                     <div style="font-weight: bold; font-size: 14px; color: #333; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${book.title}">
-                        ${isCurrentBook ? '📍 ' : ''}${book.title}
+                        ${isCurrentBook ? '' : ''}${book.title}
                     </div>
                     <div style="font-size: 12px; color: #666; margin-bottom: 4px;">
                         👤 作者：${cleanAuthor}
