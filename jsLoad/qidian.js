@@ -2,12 +2,14 @@
  * @Author: xhg
  * @Date:   2025-06-22 15:24:27
  * @Last Modified by:   xhg
- * @Last Modified time: 2025-06-26 20:29:57
+ * @Last Modified time: 2025-07-06 16:43:52
  */
 // ==UserScript==
 // @name        自动点击小工具
 // @namespace   Violentmonkey Scripts
 // @match       https://book.qidian.com/info/*
+// @match       https://captain.czhtrqri.com/en/videos*
+
 // @match       https://www.zhihu.com/question/*
 // @match       https://www.ypshuo.com/novel/*
 // @grant       none
