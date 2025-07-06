@@ -2,7 +2,7 @@
  * @Author: xhg
  * @Date:   2025-06-17 21:19:10
  * @Last Modified by:   xhg
- * @Last Modified time: 2025-07-06 20:14:25
+ * @Last Modified time: 2025-07-06 20:20:35
  */
 // ==UserScript==
 // @name        自动新跳转到新的标签页 并打开
@@ -340,7 +340,7 @@
                         return text && 
                                text.length > 0 && 
                                el.offsetParent !== null &&
-                               !el.querySelector('button[data-copy-button="true"]');
+                               !el.getAttribute('data-copy-button-processed');
                     });
 
                 if (elements.length > 0) {
@@ -367,6 +367,7 @@
                 vertical-align: middle;
                 transition: transform 0.2s;
                 z-index: 9999;
+                position: relative;
             `;
 
             // 悬hover效果
@@ -423,6 +424,10 @@
                 try {
                     const copyButton = createCopyButton(titleElement);
                     titleElement.parentNode.insertBefore(copyButton, titleElement.nextSibling);
+                    
+                    // 标记已处理，防止重复添加
+                    titleElement.setAttribute('data-copy-button-processed', 'true');
+                    
                     addedButtons++;
                     debugLog('成功插入复制按钮');
                 } catch (error) {
@@ -433,26 +438,20 @@
             return addedButtons > 0;
         }
 
-        // 使用 MutationObserver 持续监听页面变化
-        const observer = new MutationObserver((mutations) => {
-            const hasRelevantMutation = mutations.some(mutation => 
-                mutation.type === 'childList' && 
-                mutation.addedNodes.length > 0
-            );
-
-            if (hasRelevantMutation) {
+        // 使用一次性处理，避免持续监听
+        function initCopyButtons() {
+            // 延迟执行，确保DOM完全加载
+            setTimeout(() => {
                 processCopyButtons();
-            }
-        });
+            }, 500);
+        }
 
-        // 立即执行一次
-        processCopyButtons();
-
-        // 开始观察整个文档
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true
-        });
+        // 页面加载完成后执行
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initCopyButtons);
+        } else {
+            initCopyButtons();
+        }
     }
 
     // 注册油猴菜单命令
