@@ -2,7 +2,7 @@
  * @Author: xhg
  * @Date:   2025-06-17 21:19:10
  * @Last Modified by:   xhg
- * @Last Modified time: 2025-07-06 19:44:46
+ * @Last Modified time: 2025-07-06 20:14:25
  */
 // ==UserScript==
 // @name        自动新跳转到新的标签页 并打开
@@ -24,7 +24,6 @@
 
 (function() {
     'use strict';
-    // 为所有a标签添加target="_blank"属性，但排除内部功能链接
     function addTargetBlank() {
         const links = document.querySelectorAll('a');
         links.forEach(link => {
@@ -277,115 +276,177 @@
     // 支持的网站列表配置
     const SUPPORTED_SITES = {
         'qidiantu': {
-            selector: '.panel-heading h4',
+            selectors: [
+                '.panel-heading h4', 
+                '.panel-heading', 
+                '.book-title', 
+                '.book-name'
+            ],
             url: ['https://www.qidiantu.com/booklist']
         },
         'youshu_pc': {
-            selector: '.title a',
+            selectors: [
+                '.title a', 
+                '.title', 
+                '.book-title'
+            ],
             url: ['https://www.youshu.me/booklist']
         },
         'youshu_mobile': {
-            selector: '.book-list .book-item .title',
+            selectors: [
+                '.book-list .book-item .title', 
+                '.book-list .book-item',
+                '.book-name'
+            ],
             url: ['https://m.youshu.me/book-list']
         },
         'tuishujun': {
-            selector: '.book-list-box .title',
+            selectors: [
+                '.book-list-box .title', 
+                '.book-list-box',
+                '.book-name'
+            ],
             url: ['https://tuishujun.com/book-lists']
         }
     };
 
     // 添加复制按钮的通用函数
-    function addCopyButtonToBookTitle(sites = []) {
-        // 使用 MutationObserver 监听页面变化
-        const observer = new MutationObserver((mutations, obs) => {
-            let matchedSite = null;
+    function addCopyButtonToBookTitle() {
+        // 调试日志函数
+        function debugLog(...args) {
+            console.log('[复制按钮调试]', ...args);
+        }
 
-            // 找到匹配的站点配置
+        // 查找匹配的站点配置
+        function findMatchedSite() {
+            const currentUrl = window.location.href;
             for (const [siteName, siteConfig] of Object.entries(SUPPORTED_SITES)) {
-                if (siteConfig.url.some(url => window.location.href.includes(url))) {
-                    matchedSite = siteConfig;
+                if (siteConfig.url.some(url => currentUrl.includes(url))) {
+                    return siteConfig;
+                }
+            }
+            return null;
+        }
+
+        // 智能选择书名元素
+        function findBookTitleElements(matchedSite) {
+            let titleElements = [];
+
+            // 尝试多个选择器
+            for (const selector of matchedSite.selectors) {
+                const elements = Array.from(document.querySelectorAll(selector))
+                    .filter(el => {
+                        const text = el.textContent.trim();
+                        return text && 
+                               text.length > 0 && 
+                               el.offsetParent !== null &&
+                               !el.querySelector('button[data-copy-button="true"]');
+                    });
+
+                if (elements.length > 0) {
+                    titleElements = elements;
                     break;
                 }
             }
 
+            return titleElements;
+        }
+
+        // 创建复制按钮
+        function createCopyButton(titleElement) {
+            const copyButton = document.createElement('button');
+            copyButton.innerHTML = '📋';
+            copyButton.setAttribute('data-copy-button', 'true');
+            copyButton.style.cssText = `
+                background: none;
+                border: none;
+                cursor: pointer;
+                font-size: 16px;
+                margin-left: 2px;
+                margin-top: -4px;
+                vertical-align: middle;
+                transition: transform 0.2s;
+                z-index: 9999;
+            `;
+
+            // 悬hover效果
+            copyButton.addEventListener('mouseenter', () => {
+                copyButton.style.transform = 'scale(1.2)';
+            });
+            copyButton.addEventListener('mouseleave', () => {
+                copyButton.style.transform = 'scale(1)';
+            });
+
+            // 添加复制功能
+            copyButton.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                
+                // 获取书名（去掉《》）
+                const fullTitle = titleElement.textContent.trim();
+                const bookName = fullTitle.replace(/^《|》$/g, '');
+
+                debugLog('尝试复制书名:', bookName);
+
+                // 复制到剪贴板
+                navigator.clipboard.writeText(bookName).then(() => {
+                    // 显示全局通知
+                    showGlobalNotification('复制成功!', 'success');
+                }).catch(err => {
+                    console.error('复制失败', err);
+                    showGlobalNotification('复制失败', 'error');
+                });
+            });
+
+            return copyButton;
+        }
+
+        // 主处理函数
+        function processCopyButtons() {
+            const matchedSite = findMatchedSite();
+            
             if (!matchedSite) {
-                console.log('没有匹配的站点，跳过');
-                return;
+                debugLog('没有匹配的站点，跳过');
+                return false;
             }
 
-            const bookTitles = document.querySelectorAll(matchedSite.selector);
+            const titleElements = findBookTitleElements(matchedSite);
             
-            console.log('开始添加复制按钮');
-            console.log('当前网址:', window.location.href);
-            console.log('匹配站点:', matchedSite.url);
-            console.log('选择器:', matchedSite.selector);
-            console.log('找到的书名元素数量:', bookTitles.length);
+            debugLog('当前网址:', window.location.href);
+            debugLog('匹配站点:', matchedSite.url);
+            debugLog('找到的书名元素数量:', titleElements.length);
 
-            if (bookTitles.length > 0) {
-                // 停止观察
-                obs.disconnect();
+            let addedButtons = 0;
+            titleElements.forEach((titleElement, index) => {
+                debugLog(`处理第 ${index + 1} 个书名元素:`, titleElement);
 
-                bookTitles.forEach((titleElement, index) => {
-                    console.log(`处理第 ${index + 1} 个书名元素:`, titleElement);
+                try {
+                    const copyButton = createCopyButton(titleElement);
+                    titleElement.parentNode.insertBefore(copyButton, titleElement.nextSibling);
+                    addedButtons++;
+                    debugLog('成功插入复制按钮');
+                } catch (error) {
+                    console.error('插入复制按钮时发生错误:', error);
+                }
+            });
 
-                    // 检查是否已经添加过复制按钮
-                    if (titleElement.nextSibling && 
-                        titleElement.nextSibling.textContent === '📋') {
-                        return;
-                    }
+            return addedButtons > 0;
+        }
 
-                    // 创建复制按钮
-                    const copyButton = document.createElement('button');
-                    copyButton.innerHTML = '📋';
-                    copyButton.style.cssText = `
-                        background: none;
-                        border: none;
-                        cursor: pointer;
-                        font-size: 16px;
-                        margin-left: 2px;
-                        margin-top: -4px;
-                        vertical-align: middle;
-                        transition: transform 0.2s;
-                    `;
+        // 使用 MutationObserver 持续监听页面变化
+        const observer = new MutationObserver((mutations) => {
+            const hasRelevantMutation = mutations.some(mutation => 
+                mutation.type === 'childList' && 
+                mutation.addedNodes.length > 0
+            );
 
-                    // 悬hover效果
-                    copyButton.addEventListener('mouseenter', () => {
-                        copyButton.style.transform = 'scale(1.2)';
-                    });
-                    copyButton.addEventListener('mouseleave', () => {
-                        copyButton.style.transform = 'scale(1)';
-                    });
-
-                    // 添加复制功能
-                    copyButton.addEventListener('click', (event) => {
-                        event.preventDefault();
-                        
-                        // 获取书名（去掉《》）
-                        const fullTitle = titleElement.textContent.trim();
-                        const bookName = fullTitle.replace(/^《|》$/g, '');
-
-                        console.log('尝试复制书名:', bookName);
-
-                        // 复制到剪贴板
-                        navigator.clipboard.writeText(bookName).then(() => {
-                            // 显示全局通知
-                            showGlobalNotification('复制成功!', 'success');
-                        }).catch(err => {
-                            console.error('复制失败', err);
-                            showGlobalNotification('复制失败', 'error');
-                        });
-                    });
-
-                    // 将复制按钮插入到标题旁边
-                    try {
-                        titleElement.parentNode.insertBefore(copyButton, titleElement.nextSibling);
-                        console.log('成功插入复制按钮');
-                    } catch (error) {
-                        console.error('插入复制按钮时发生错误:', error);
-                    }
-                });
+            if (hasRelevantMutation) {
+                processCopyButtons();
             }
         });
+
+        // 立即执行一次
+        processCopyButtons();
 
         // 开始观察整个文档
         observer.observe(document.body, {
