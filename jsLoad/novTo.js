@@ -2,10 +2,10 @@
  * @Author: xhg
  * @Date:   2025-06-17 21:19:10
  * @Last Modified by:   xhg
- * @Last Modified time: 2025-07-06 20:20:35
+ * @Last Modified time: 2025-07-06 20:21:37
  */
 // ==UserScript==
-// @name        自动新跳转到新的标签页 并打开
+// @name        自动新跳转到新的标签页-复制到剪贴板
 // @namespace   Violentmonkey Scripts
 // @match       https://tuishujun.com/books/2*
 // @match       https://tuishujun.com/book-list*
