@@ -2,7 +2,7 @@
  * @Author: xhg
  * @Date:   2025-06-17 21:19:10
  * @Last Modified by:   xhg
- * @Last Modified time: 2025-07-06 15:44:03
+ * @Last Modified time: 2025-07-06 19:44:46
  */
 // ==UserScript==
 // @name        自动新跳转到新的标签页 并打开
@@ -24,7 +24,6 @@
 
 (function() {
     'use strict';
-
     // 为所有a标签添加target="_blank"属性，但排除内部功能链接
     function addTargetBlank() {
         const links = document.querySelectorAll('a');
