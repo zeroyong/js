@@ -1,4 +1,0 @@
-PyQt6
-requests
-pyperclip
-pyinstaller

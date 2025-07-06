@@ -2,14 +2,14 @@
  * @Author: xhg
  * @Date:   2025-06-17 20:49:16
  * @Last Modified by:   xhg
- * @Last Modified time: 2025-06-29 14:00:52
+ * @Last Modified time: 2025-07-06 13:29:19
  */
 // ==UserScript==
 // @name        📚书单添加小工具
 // @namespace   Violentmonkey Scripts
 // @match       https://tuishujun.com/books/*
 // @match       https://www.ypshuo.com/novel/*
-// @match       https://www.youshu.me/book*
+// @match       https://www.youshu.me/book/*
 // @match       https://www.qidiantu.com/info*
 // @grant       GM_setValue
 // @grant       GM_getValue
@@ -1305,7 +1305,7 @@
     async function loadSiteConfig() {
         try {
             const host = window.location.host;
-            const sourceListUrl = 'https://raw.githubusercontent.com/zeroyong/js/main/sourceBooks/source.json';
+            const sourceListUrl = 'https://raw.kkgithub.com/zeroyong/js/main/sourceBooks/source.json';
             
             // 尝试获取缓存的配置
             const cachedConfigs = GM_getValue(SITE_CONFIG_CACHE_KEY, {});
