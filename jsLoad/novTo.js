@@ -2,7 +2,7 @@
  * @Author: xhg
  * @Date:   2025-06-17 21:19:10
  * @Last Modified by:   xhg
- * @Last Modified time: 2025-07-06 20:21:37
+ * @Last Modified time: 2025-07-14 20:53:25
  */
 // ==UserScript==
 // @name        自动新跳转到新的标签页-复制到剪贴板
@@ -12,6 +12,8 @@
 // @match       https://tuishujun.com/search/*
 // @match       https://www.ypshuo.com/booklist*
 // @match       https://www.youshu.me/book*
+// @match       https://act.crxtlg.com/cn/videos*
+// @match       https://avx18.com/cn/*
 // @match       https://m.youshu.me/*
 // @match       https://www.qidiantu.com/booklist*
 // @match       https://www.qidiantu.com/badge*
@@ -471,6 +473,36 @@
         }
     }
 
+    // 处理 act.crxtlg.com 视频页面的特殊逻辑
+    function handleCrxtlgVideos() {
+        // 仅在 act.crxtlg.com 的视频页面生效
+        if (!window.location.href.includes('https://act.crxtlg.com')) return;
+
+        try {
+            // 删除 .adaptation 的第二个元素
+            const adaptationElements = document.querySelectorAll('.adaptation');
+            if (adaptationElements.length >= 2) {
+                const elementToRemove = adaptationElements[1];
+                console.log('[CRXTLG视频页面处理] 删除第二个 .adaptation 元素:', elementToRemove);
+                elementToRemove.remove();
+            }
+
+            // 删除广告元素
+            const adLabels = Array.from(document.querySelectorAll('span.label')).filter(
+                label => label.textContent.trim() === '广告'
+            );
+            adLabels.forEach(adLabel => {
+                const adContainer = adLabel.closest('.video-img-box, .col-6');
+                if (adContainer) {
+                    console.log('[CRXTLG视频页面处理] 删除广告元素:', adContainer);
+                    adContainer.remove();
+                }
+            });
+        } catch (error) {
+            console.error('[CRXTLG视频页面处理] 发生错误:', error);
+        }
+    }
+
     // 页面加载完成后执行
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', function() {
@@ -484,6 +516,7 @@
             
             // 注册油猴菜单
             bindGM();
+            handleCrxtlgVideos(); // 添加这一行
         });
     } else {
         addTargetBlank();
@@ -496,6 +529,7 @@
         
         // 注册油猴菜单
         bindGM();
+        handleCrxtlgVideos(); // 添加这一行
     }
 
     console.log('自动新标签页打开脚本已加载（已优化，不会干扰内部功能）');
