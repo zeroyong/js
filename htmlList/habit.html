@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>微习惯养成</title>
+    <style>
+        /* Task Management Panel */
+        .task-panel {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow);
+            transition: all 0.3s ease;
+            max-height: 500px;
+            overflow: hidden;
+        }
+        
+        .task-panel.collapsed {
+            max-height: 50px;
+            overflow: hidden;
+        }
+        
+        .task-panel-toggle {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            font-weight: 600;
+            padding: 10px 0;
+            user-select: none;
+        }
+        
+        .task-panel-toggle::after {
+            content: '▼';
+            font-size: 0.8em;
+            transition: transform 0.3s ease;
+        }
+        
+        .task-panel.collapsed .task-panel-toggle::after {
+            transform: rotate(-90deg);
+        }
+        
+        .task-form {
+            margin-top: 15px;
+            display: grid;
+            gap: 15px;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            align-items: end;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .form-group label {
+            margin-bottom: 5px;
+            font-size: 0.9em;
+            color: #666;
+        }
+        
+        .form-control {
+            padding: 10px 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1em;
+            width: 100%;
+        }
+        
+        .task-list {
+            margin-top: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+        }
+        
+        .task-item {
+            padding: 10px 15px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .task-item:last-child {
+            border-bottom: none;
+        }
+        
+        .task-item:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .task-item.active {
+            background-color: #e6f0ff;
+            border-left: 3px solid var(--primary-color);
+        }
+        
+        .task-item .task-name {
+            font-weight: 500;
+            margin: 0;
+            font-size: 1em;
+            color: var(--text-color);
+        }
+        
+        .task-item .task-duration {
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        .task-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 0.8em;
+            min-width: auto;
+        }
+        
+        .select-task {
+            margin: 15px 0;
+        }
+        
+        .select-task select {
+            width: 100%;
+            padding: 10px 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1em;
+            background-color: white;
+        }
+        
+        :root {
+            --primary-color: #4a90e2;
+            --secondary-color: #f5f5f5;
+            --text-color: #333;
+            --border-color: #ddd;
+            --shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            background-color: #f9f9f9;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .page {
+            display: none;
+            max-width: 600px;
+            margin: 0 auto;
+            min-height: calc(100vh - 40px);
+            flex-direction: column;
+        }
+        
+        .active {
+            display: flex;
+        }
+
+        /* Timer Container */
+        .timer-container {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: var(--shadow);
+            width: 100%;
+            text-align: center;
+            margin: auto 0;
+        }
+
+        /* Task Name */
+        .task-name {
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            color: var(--primary-color);
+            min-height: 1.5em;
+            font-weight: 600;
+        }
+        
+        /* Timer Display */
+        .timer-display {
+            font-size: 5.5em;
+            font-weight: 300;
+            margin: 30px 0;
+            font-family: 'Courier New', monospace;
+            color: var(--text-color);
+            letter-spacing: 2px;
+        }
+        
+        /* Timer Controls */
+        .timer-controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin: 30px 0;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 15px 30px;
+            font-size: 1.1em;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            min-width: 140px;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .btn-secondary {
+            background-color: #f0f0f0;
+            color: var(--text-color);
+        }
+        
+        .btn-danger {
+            background-color: #ff4d4d;
+            color: white;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        /* Other pages */
+        /* Record Page Styles */
+        .session-info {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+            border-left: 4px solid var(--primary-color);
+        }
+        
+        .session-duration {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: var(--primary-color);
+            margin-bottom: 5px;
+        }
+        
+        .session-task {
+            color: #666;
+            font-size: 0.95em;
+        }
+        
+        .record-entry {
+            width: 100%;
+            margin: 15px 0;
+            padding: 15px;
+            min-height: 150px;
+            max-height: 300px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 1em;
+            line-height: 1.6;
+            resize: none;
+            overflow-y: hidden;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        
+        .record-entry:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
+        }
+        
+        .image-upload-container {
+            margin: 20px 0;
+        }
+        
+        .image-upload-label {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: var(--primary-color);
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.2s;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        
+        .image-upload-label:hover {
+            background-color: #3a7bc8;
+            transform: translateY(-2px);
+        }
+        
+        .image-upload-label:active {
+            transform: translateY(0);
+        }
+        
+        .image-preview-container {
+            margin-top: 15px;
+            display: none;
+        }
+        
+        .image-preview {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            margin-top: 10px;
+            display: block;
+        }
+        
+        .remove-image {
+            display: inline-block;
+            margin-top: 8px;
+            color: #ff4d4d;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+        
+        .remove-image:hover {
+            text-decoration: underline;
+        }
+        
+        .record-list {
+            margin-top: 20px;
+            flex-grow: 1;
+        }
+        
+        .record-item {
+            border: 1px solid var(--border-color);
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            background: white;
+        }
+    </style>
+</head>
+<body>
+    <!-- 主页面 - 计时器 -->
+    <div id="timer-page" class="page active">
+        <!-- 任务管理面板 -->
+        <div class="task-panel">
+            <div class="task-panel-toggle">
+                <span>管理微习惯任务</span>
+            </div>
+            <div class="task-panel-content">
+                <form id="task-form" class="task-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="task-name">任务名称</label>
+                            <input type="text" id="task-name" class="form-control" placeholder="例如：背单词10分钟" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="task-duration">时长（分钟）</label>
+                            <input type="number" id="task-duration" class="form-control" min="1" max="120" value="10" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">添加任务</button>
+                </form>
+                
+                <div class="task-list" id="task-list">
+                    <!-- 任务列表将通过JavaScript动态生成 -->
+                </div>
+            </div>
+        </div>
+        
+        <!-- 选择任务下拉框 -->
+        <div class="select-task">
+            <select id="task-select" class="form-control">
+                <option value="">-- 选择或创建任务 --</option>
+                <!-- 任务选项将通过JavaScript动态生成 -->
+            </select>
+        </div>
+        
+        <div class="timer-container">
+            <h1>微习惯计时器</h1>
+            <div class="task-name" id="current-task">未选择任务</div>
+            <div class="timer-display" id="timer">10:00</div>
+            
+            <div class="timer-controls">
+                <button id="start-timer" class="btn btn-primary">开始</button>
+                <button id="pause-timer" class="btn btn-secondary" style="display: none;">暂停</button>
+                <button id="stop-timer" class="btn btn-danger">结束</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 记录页面 -->
+    <div id="record-page" class="page">
+        <div class="timer-container">
+            <h1>记录你的学习</h1>
+            
+            <div class="session-info">
+                <div class="session-duration" id="session-duration">本次专注了 10 分钟</div>
+                <div class="session-task" id="session-task">任务: <span id="record-task-name">未指定任务</span></div>
+            </div>
+            
+            <div class="form-group">
+                <label for="record-text">学习心得</label>
+                <textarea 
+                    id="record-text" 
+                    class="record-entry" 
+                    placeholder="记录你的学习心得、收获或想法..."
+                    oninput="autoResize(this)"
+                ></textarea>
+            </div>
+            
+            <div class="image-upload-container">
+                <label for="image-upload" class="image-upload-label">
+                    📷 选择图片
+                </label>
+                <input 
+                    type="file" 
+                    id="image-upload" 
+                    accept="image/*" 
+                    style="display: none;"
+                >
+                <div class="image-preview-container" id="image-preview-container">
+                    <img src="" alt="预览" class="image-preview" id="image-preview">
+                    <div class="remove-image" id="remove-image">移除图片</div>
+                </div>
+            </div>
+            
+            <div style="text-align: center; margin-top: 30px;">
+                <button id="save-record" class="btn btn-primary" style="padding: 12px 40px;">
+                    保存记录
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 历史记录页面 -->
+    <div id="history-page" class="page">
+        <h1>历史记录</h1>
+        <button id="back-to-timer" class="btn">返回计时器</button>
+        <div id="records-list" class="record-list">
+            <!-- 记录将通过JavaScript动态添加 -->
+        </div>
+    </div>
+
+    <script>
+        // 页面元素
+        const timerPage = document.getElementById('timer-page');
+        const sessionDurationElement = document.getElementById('session-duration');
+        const recordTaskNameElement = document.getElementById('record-task-name');
+        const imageUpload = document.getElementById('image-upload');
+        const imagePreview = document.getElementById('image-preview');
+        const imagePreviewContainer = document.getElementById('image-preview-container');
+        const removeImageButton = document.getElementById('remove-image');
+        let sessionStartTime = null;
+        const taskForm = document.getElementById('task-form');
+        const taskNameInput = document.getElementById('task-name');
+        const taskDurationInput = document.getElementById('task-duration');
+        const taskList = document.getElementById('task-list');
+        const taskSelect = document.getElementById('task-select');
+        const taskPanel = document.querySelector('.task-panel');
+        const taskPanelToggle = document.querySelector('.task-panel-toggle');
+        const recordPage = document.getElementById('record-page');
+        const historyPage = document.getElementById('history-page');
+        const timerDisplay = document.getElementById('timer');
+        const startButton = document.getElementById('start-timer');
+        const pauseButton = document.getElementById('pause-timer');
+        const stopButton = document.getElementById('stop-timer');
+        const saveRecordButton = document.getElementById('save-record');
+        const backToTimerButton = document.getElementById('back-to-timer');
+        const recordsList = document.getElementById('records-list');
+        const recordText = document.getElementById('record-text');
+        const currentTaskElement = document.getElementById('current-task');
+
+        // 计时器变量
+        let timer;
+        let timeLeft = 10 * 60; // 10分钟，以秒为单位
+        let isRunning = false;
+        let isPaused = false;
+        let currentTaskName = '未选择任务';
+        let startTime = null;
+        let elapsedTime = 0;
+
+        // 切换到指定页面
+        function showPage(pageId) {
+            document.querySelectorAll('.page').forEach(page => {
+                page.classList.remove('active');
+            });
+            document.getElementById(pageId).classList.add('active');
+        }
+
+        // 更新计时器显示
+        function updateTimerDisplay() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        // 图片上传处理
+        if (imageUpload) {
+            imageUpload.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file && file.type.match('image.*')) {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        imagePreview.src = event.target.result;
+                        imagePreviewContainer.style.display = 'block';
+                    };
+                    reader.onerror = function() {
+                        alert('图片加载失败，请重试');
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    alert('请选择有效的图片文件');
+                    this.value = '';
+                }
+            });
+        }
+        
+        // 移除图片
+        if (removeImageButton) {
+            removeImageButton.addEventListener('click', function() {
+                if (imageUpload) imageUpload.value = '';
+                if (imagePreview) imagePreview.src = '';
+                if (imagePreviewContainer) imagePreviewContainer.style.display = 'none';
+            });
+        }
+        
+        // 开始计时器
+        function startTimer() {
+            if (isRunning) return;
+            
+            isRunning = true;
+            isPaused = false;
+            startTime = new Date();
+            
+            // 如果是继续计时，调整开始时间以考虑已暂停的时间
+            if (elapsedTime > 0) {
+                startTime = new Date(new Date() - elapsedTime);
+            }
+            
+            // 更新按钮状态
+            startButton.style.display = 'none';
+            pauseButton.style.display = 'inline-block';
+            
+            timer = setInterval(() => {
+                const now = new Date();
+                const diff = Math.floor((now - startTime) / 1000); // 秒数
+                timeLeft = Math.max(0, 10 * 60 - diff); // 10分钟倒计时
+                
+                updateTimerDisplay();
+                
+                if (timeLeft <= 0) {
+                    clearInterval(timer);
+                    isRunning = false;
+                    showRecordPage();
+                }
+            }, 200);
+        }
+
+        // 暂停/继续计时器
+        function togglePauseTimer() {
+            if (!isRunning) return;
+            
+            if (isPaused) {
+                // 继续计时
+                isPaused = false;
+                pauseButton.textContent = '暂停';
+                startTimer(); // 重新开始计时
+            } else {
+                // 暂停计时
+                isPaused = true;
+                clearInterval(timer);
+                pauseButton.textContent = '继续';
+                elapsedTime = (10 * 60 - timeLeft) * 1000; // 保存已用时间
+            }
+        }
+
+        // 停止计时器
+        function stopTimer() {
+            clearInterval(timer);
+            isRunning = false;
+            isPaused = false;
+            elapsedTime = 0;
+            showRecordPage();
+        }
+
+        // 重置计时器
+        function resetTimer() {
+            clearInterval(timer);
+            isRunning = false;
+            isPaused = false;
+            elapsedTime = 0;
+            timeLeft = 10 * 60; // 重置为10分钟
+            updateTimerDisplay();
+            
+            // 重置按钮状态
+            startButton.style.display = 'inline-block';
+            pauseButton.style.display = 'none';
+            pauseButton.textContent = '暂停';
+        }
+
+        // 显示记录页面
+        function showRecordPage() {
+            showPage('record-page');
+            recordText.value = '';
+            imageUpload.value = '';
+            
+            // 更新会话信息
+            const now = new Date();
+            const durationInSeconds = Math.floor((now - sessionStartTime) / 1000);
+            const minutes = Math.floor(durationInSeconds / 60);
+            const seconds = durationInSeconds % 60;
+            
+            sessionDurationElement.textContent = `本次专注了 ${minutes} 分 ${seconds} 秒`;
+            recordTaskNameElement.textContent = currentTaskName || '未指定任务';
+            
+            // 重置图片预览
+            imagePreview.src = '';
+            imagePreviewContainer.style.display = 'none';
+        }
+
+        // 自动调整文本框高度
+        function autoResize(textarea) {
+            textarea.style.height = 'auto';
+            textarea.style.height = (textarea.scrollHeight) + 'px';
+        }
+        
+        // 保存记录
+        function saveRecord() {
+            if (!recordText.value.trim()) {
+                alert('请填写学习心得');
+                return;
+            }
+            
+            const record = {
+                id: Date.now(),
+                text: recordText.value,
+                image: imagePreview.src || null,
+                date: new Date().toLocaleString(),
+                duration: Math.floor((new Date() - sessionStartTime) / 1000), // 保存秒数
+                taskName: currentTaskName
+            };
+            
+            // 保存到本地存储
+            let records = JSON.parse(localStorage.getItem('habitRecords') || '[]');
+            records.unshift(record);
+            localStorage.setItem('habitRecords', JSON.stringify(records));
+            
+            // 重置并返回计时器
+            resetTimer();
+            showPage('history-page');
+            loadRecords();
+        }
+
+        // 加载历史记录
+        function loadRecords() {
+            const records = JSON.parse(localStorage.getItem('habitRecords') || '[]');
+            recordsList.innerHTML = '';
+            
+            records.forEach(record => {
+                const recordElement = document.createElement('div');
+                recordElement.className = 'record-item';
+                
+                let recordHTML = `
+                    <div><strong>${record.date}</strong></div>
+                    <div>${record.text || '无文本记录'}</div>
+                `;
+                
+                if (record.image) {
+                    recordHTML += `<img src="${record.image}" style="max-width: 100%; margin-top: 10px;">`;
+                }
+                
+                recordElement.innerHTML = recordHTML;
+                recordsList.appendChild(recordElement);
+            });
+        }
+
+        // 事件监听器
+        startButton.addEventListener('click', startTimer);
+        pauseButton.addEventListener('click', togglePauseTimer);
+        stopButton.addEventListener('click', stopTimer);
+        saveRecordButton.addEventListener('click', saveRecord);
+        backToTimerButton.addEventListener('click', () => {
+            resetTimer();
+            showPage('timer-page');
+        });
+        
+        // 设置当前任务名称
+        function setCurrentTask(name) {
+            currentTaskName = name || '未选择任务';
+            currentTaskElement.textContent = currentTaskName;
+        }
+        
+        // 初始化
+        setCurrentTask(currentTaskName);
+        updateTimerDisplay();
+        loadRecords();
+        loadTasks();
+        
+        // 任务面板切换
+        taskPanelToggle.addEventListener('click', () => {
+            taskPanel.classList.toggle('collapsed');
+        });
+        
+        // 添加新任务
+        taskForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            addTask({
+                id: Date.now(),
+                name: taskNameInput.value.trim(),
+                duration: parseInt(taskDurationInput.value, 10)
+            });
+            taskForm.reset();
+        });
+        
+        // 选择任务
+        taskSelect.addEventListener('change', (e) => {
+            const taskId = parseInt(e.target.value, 10);
+            if (taskId) {
+                const tasks = getTasks();
+                const task = tasks.find(t => t.id === taskId);
+                if (task) {
+                    setCurrentTask(task.name);
+                    timeLeft = task.duration * 60;
+                    updateTimerDisplay();
+                    resetTimer();
+                }
+            }
+        });
+        
+        // 任务相关函数
+        function getTasks() {
+            return JSON.parse(localStorage.getItem('habitTasks') || '[]');
+        }
+        
+        function saveTasks(tasks) {
+            localStorage.setItem('habitTasks', JSON.stringify(tasks));
+        }
+        
+        function addTask(task) {
+            const tasks = getTasks();
+            tasks.push(task);
+            saveTasks(tasks);
+            renderTasks();
+            updateTaskSelect();
+        }
+        
+        function deleteTask(id) {
+            const tasks = getTasks().filter(task => task.id !== id);
+            saveTasks(tasks);
+            renderTasks();
+            updateTaskSelect();
+        }
+        
+        function renderTasks() {
+            const tasks = getTasks();
+            taskList.innerHTML = '';
+            
+            if (tasks.length === 0) {
+                taskList.innerHTML = '<div class="task-item">暂无任务，请添加</div>';
+                return;
+            }
+            
+            tasks.forEach(task => {
+                const taskElement = document.createElement('div');
+                taskElement.className = 'task-item';
+                taskElement.innerHTML = `
+                    <div>
+                        <div class="task-name">${task.name}</div>
+                        <div class="task-duration">${task.duration} 分钟</div>
+                    </div>
+                    <div class="task-actions">
+                        <button class="btn btn-sm btn-secondary use-task" data-id="${task.id}">使用</button>
+                        <button class="btn btn-sm btn-danger delete-task" data-id="${task.id}">删除</button>
+                    </div>
+                `;
+                taskList.appendChild(taskElement);
+            });
+            
+            // 添加事件监听器
+            document.querySelectorAll('.use-task').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const taskId = parseInt(e.target.dataset.id, 10);
+                    const tasks = getTasks();
+                    const task = tasks.find(t => t.id === taskId);
+                    if (task) {
+                        setCurrentTask(task.name);
+                        timeLeft = task.duration * 60;
+                        updateTimerDisplay();
+                        resetTimer();
+                        taskSelect.value = taskId;
+                        taskPanel.classList.add('collapsed');
+                    }
+                });
+            });
+            
+            document.querySelectorAll('.delete-task').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    if (confirm('确定要删除这个任务吗？')) {
+                        const taskId = parseInt(e.target.dataset.id, 10);
+                        deleteTask(taskId);
+                    }
+                    e.stopPropagation();
+                });
+            });
+        }
+        
+        function updateTaskSelect() {
+            const tasks = getTasks();
+            const currentValue = taskSelect.value;
+            
+            taskSelect.innerHTML = '<option value="">-- 选择或创建任务 --</option>';
+            
+            tasks.forEach(task => {
+                const option = document.createElement('option');
+                option.value = task.id;
+                option.textContent = `${task.name} (${task.duration}分钟)`;
+                taskSelect.appendChild(option);
+            });
+            
+            if (currentValue) {
+                taskSelect.value = currentValue;
+            }
+        }
+        
+        function loadTasks() {
+            renderTasks();
+            updateTaskSelect();
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,189 @@
+<!-- 
+  @Author: xhg
+  @Date:   2025-07-18 22:19:55
+  @Last Modified by:   xhg
+  @Last Modified time: 2025-07-18 22:24:05
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学习计时器</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            color: #333;
+        }
+
+        .timer-container {
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            width: 320px;
+        }
+
+        h1 {
+            margin-bottom: 30px;
+            font-size: 2em;
+            color: #4a4a4a;
+        }
+
+        .time-display {
+            font-size: 4.5em;
+            font-weight: bold;
+            margin-bottom: 30px;
+            color: #3d3d3d;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        input[type="number"] {
+            width: 80px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 1em;
+            margin: 0 5px;
+        }
+
+        .buttons button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 1em;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: background-color 0.3s;
+        }
+
+        .buttons button:hover {
+            background-color: #45a049;
+        }
+
+        .buttons button.stop {
+            background-color: #f44336;
+        }
+
+        .buttons button.stop:hover {
+            background-color: #da190b;
+        }
+
+        .buttons button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="timer-container">
+        <h1>学习计时器</h1>
+        <div class="time-display" id="time-display">00:00</div>
+        <div class="input-group">
+            <input type="number" id="minutes" placeholder="分钟" min="0" value="10">
+        </div>
+        <div class="buttons">
+            <button id="start-btn">开始</button>
+            <button id="stop-btn" class="stop" disabled>停止</button>
+        </div>
+    </div>
+
+    <script>
+        const timeDisplay = document.getElementById('time-display');
+        const minutesInput = document.getElementById('minutes');
+        const startBtn = document.getElementById('start-btn');
+        const stopBtn = document.getElementById('stop-btn');
+
+        let countdown;
+        let timerSeconds;
+
+        function timer(seconds) {
+            clearInterval(countdown);
+
+            const now = Date.now();
+            const then = now + seconds * 1000;
+            displayTimeLeft(seconds);
+
+            countdown = setInterval(() => {
+                const secondsLeft = Math.round((then - Date.now()) / 1000);
+                if (secondsLeft < 0) {
+                    clearInterval(countdown);
+                    playSound();
+                    if (confirm('时间到！要开始新一轮的学习吗？')) {
+                        startTimer();
+                    } else {
+                        resetTimer();
+                    }
+                    return;
+                }
+                displayTimeLeft(secondsLeft);
+            }, 1000);
+        }
+
+        function displayTimeLeft(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const remainderSeconds = seconds % 60;
+            const display = `${minutes < 10 ? '0' : ''}${minutes}:${remainderSeconds < 10 ? '0' : ''}${remainderSeconds}`;
+            timeDisplay.textContent = display;
+            document.title = display + ' - 学习中...';
+        }
+
+        function startTimer() {
+            const minutes = parseInt(minutesInput.value);
+            if (isNaN(minutes) || minutes <= 0) {
+                alert('请输入有效的分数！');
+                return;
+            }
+            timerSeconds = minutes * 60;
+            timer(timerSeconds);
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            minutesInput.disabled = true;
+        }
+
+        function stopTimer() {
+            clearInterval(countdown);
+            resetTimer();
+        }
+        
+        function resetTimer() {
+            displayTimeLeft(0);
+            document.title = '学习计时器';
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            minutesInput.disabled = false;
+        }
+
+        function playSound() {
+            const audio = new Audio('https://interactive-examples.mdn.mozilla.net/media/cc0-audio/t-rex-roar.mp3'); // 使用一个提示音
+            audio.play();
+        }
+
+        startBtn.addEventListener('click', startTimer);
+        stopBtn.addEventListener('click', stopTimer);
+
+        resetTimer(); // Initial state
+        displayTimeLeft(parseInt(minutesInput.value) * 60);
+
+    </script>
+
+</body>
+</html>

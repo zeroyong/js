@@ -2,7 +2,7 @@
  * @Author: xhg
  * @Date:   2025-06-17 21:19:10
  * @Last Modified by:   xhg
- * @Last Modified time: 2025-07-14 20:53:25
+ * @Last Modified time: 2025-07-24 22:01:12
  */
 // ==UserScript==
 // @name        自动新跳转到新的标签页-复制到剪贴板
@@ -12,11 +12,10 @@
 // @match       https://tuishujun.com/search/*
 // @match       https://www.ypshuo.com/booklist*
 // @match       https://www.youshu.me/book*
-// @match       https://act.crxtlg.com/cn/videos*
-// @match       https://avx18.com/cn/*
 // @match       https://m.youshu.me/*
 // @match       https://www.qidiantu.com/booklist*
 // @match       https://www.qidiantu.com/badge*
+// @match       https://www.qidiantu.com/author/*
 // @match       https://www.qidiantu.com/info/*
 // @grant       none
 // @version     1.0
@@ -26,6 +25,11 @@
 
 (function() {
     'use strict';
+
+    // 调试信息
+    console.log('=== 脚本已加载 ===');
+    console.log('当前URL:', window.location.href);
+    console.log('脚本版本: 1.0');
     function addTargetBlank() {
         const links = document.querySelectorAll('a');
         links.forEach(link => {
@@ -141,7 +145,7 @@
         });
     }
 
-    // 为 qidiantu.com 书籍列表页添加无限滚动加载功能
+    // 为 qidiantu 书籍列表页添加无限滚动加载功能
     function initInfiniteScrollForQidiantu() {
         // 仅在 qidiantu.com 的书籍列表页生效
         if (!window.location.href.includes('https://www.qidiantu.com/booklist')) return;
@@ -162,15 +166,15 @@
             if (scrollPosition >= bodyHeight - 100) {
                 const currentPage = getCurrentPage();
                 const nextPage = currentPage + 1;
-                
+
                 // 获取当前页面的完整URL
                 const currentUrl = window.location.href;
                 const urlParts = currentUrl.split('/');
                 const bookListId = urlParts[urlParts.indexOf('booklist') + 1];
-                
+
                 // 构建下一页URL
                 const nextPageUrl = `https://www.qidiantu.com/booklist/${bookListId}/${nextPage}`;
-                
+
                 console.log(`滚动到底部，跳转到下一页: ${nextPageUrl}`);
                 window.location.href = nextPageUrl;
             }
@@ -235,7 +239,7 @@
 
     // 显示全局通知
     function showGlobalNotification(message, type = 'success') {
-        const notification = document.getElementById('global-notification') 
+        const notification = document.getElementById('global-notification')
             ? {
                 container: document.getElementById('global-notification'),
                 icon: document.getElementById('global-notification').querySelector('div:first-child'),
@@ -245,25 +249,25 @@
 
         // 设置颜色和图标
         const typeStyles = {
-            'success': { 
-                color: '#dbf1e1', 
-                icon: '✓' 
+            'success': {
+                color: '#dbf1e1',
+                icon: '✓'
             },
-            'error': { 
-                color: '#fde8e8', 
-                icon: '✗' 
+            'error': {
+                color: '#fde8e8',
+                icon: '✗'
             }
         };
 
         const style = typeStyles[type] || typeStyles['success'];
-        
+
         notification.container.style.backgroundColor = style.color;
         notification.icon.textContent = style.icon;
         notification.text.textContent = message;
 
         // 动态调整宽度
         notification.container.style.width = 'auto';
-        
+
         // 显示通知
         notification.container.style.opacity = '1';
         notification.container.style.transform = 'translateX(-50%) translateY(0)';
@@ -279,24 +283,31 @@
     const SUPPORTED_SITES = {
         'qidiantu': {
             selectors: [
-                '.panel-heading h4', 
-                '.panel-heading', 
-                '.book-title', 
+                'td > h1.h1-table',  // 修改选择器，确保只匹配td下的h1
+                '.book-title',
                 '.book-name'
             ],
-            url: ['https://www.qidiantu.com/booklist']
+            url: ['https://www.qidiantu.com/booklist', 'https://www.qidiantu.com/info/','https://www.qidiantu.com/author/']
+        },
+        'qidiantu_badge': {
+            selectors: [
+                'tbody a',  // 直接匹配 tbody 中的 a 标签
+                '.book-title',
+                '.book-name'
+            ],
+            url: ['https://www.qidiantu.com/badge/']
         },
         'youshu_pc': {
             selectors: [
-                '.title a', 
-                '.title', 
+                '.title a',
+                '.title',
                 '.book-title'
             ],
             url: ['https://www.youshu.me/booklist']
         },
         'youshu_mobile': {
             selectors: [
-                '.book-list .book-item .title', 
+                '.book-list .book-item .title',
                 '.book-list .book-item',
                 '.book-name'
             ],
@@ -304,19 +315,26 @@
         },
         'tuishujun': {
             selectors: [
-                '.book-list-box .title', 
+                '.book-list-box .title',
                 '.book-list-box',
                 '.book-name'
             ],
             url: ['https://tuishujun.com/book-lists']
+        },
+        'wenku8': {
+            selectors: [
+                'h1.h1-table'
+            ],
+            url: ['https://www.wenku8.net/book/']
         }
     };
 
     // 添加复制按钮的通用函数
     function addCopyButtonToBookTitle() {
-        // 调试日志函数
+        // 调试日志函数（仅在开发模式时使用）
         function debugLog(...args) {
-            console.log('[复制按钮调试]', ...args);
+            // 注释掉调试日志
+            // console.log('[复制按钮调试]', ...args);
         }
 
         // 查找匹配的站点配置
@@ -363,13 +381,16 @@
                 background: none;
                 border: none;
                 cursor: pointer;
-                font-size: 16px;
-                margin-left: 2px;
-                margin-top: -4px;
-                vertical-align: middle;
+                font-size: ${titleElement.tagName.toLowerCase() === 'h1' ? '16px' : '14px'};
+                margin-left: 8px;
+                margin-right: 5px;
+                margin-top: -3px;
+                padding: 0;
                 transition: transform 0.2s;
-                z-index: 9999;
-                position: relative;
+                position: static; /* 使按钮随内容正常流动 */
+                display: inline-block; /* 确保按钮在文本流中 */
+                line-height: 1;
+                vertical-align: baseline; /* 与文本基线对齐 */
             `;
 
             // 悬hover效果
@@ -384,12 +405,24 @@
             copyButton.addEventListener('click', (event) => {
                 event.preventDefault();
                 event.stopPropagation();
-                
-                // 获取书名（去掉《》）
-                const fullTitle = titleElement.textContent.trim();
-                const bookName = fullTitle.replace(/^《|》$/g, '');
 
-                debugLog('尝试复制书名:', bookName);
+                // 特殊处理 tbody a 标签的情况
+                let fullTitle = '';
+                if (titleElement.tagName.toLowerCase() === 'a') {
+                    fullTitle = titleElement.textContent.trim();
+                } else {
+                    // 创建一个临时的元素来获取纯文本
+                    const tempElement = document.createElement(titleElement.tagName);
+                    tempElement.innerHTML = titleElement.innerHTML;
+                    // 移除所有子元素，只保留文本节点
+                    Array.from(tempElement.childNodes)
+                        .filter(node => node.nodeType === 3) // 只保留文本节点
+                        .forEach(node => {
+                            fullTitle += node.textContent.trim();
+                        });
+                }
+
+                const bookName = fullTitle.replace(/^《|》$/g, '');
 
                 // 复制到剪贴板
                 navigator.clipboard.writeText(bookName).then(() => {
@@ -414,7 +447,7 @@
             }
 
             const titleElements = findBookTitleElements(matchedSite);
-            
+
             debugLog('当前网址:', window.location.href);
             debugLog('匹配站点:', matchedSite.url);
             debugLog('找到的书名元素数量:', titleElements.length);
@@ -503,33 +536,342 @@
         }
     }
 
-    // 页面加载完成后执行
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function() {
-            addTargetBlank();
-            observeDOM();
-            addRightClickCloseTab();
-            initInfiniteScrollForQidiantu(); // 添加无限滚动功能
-            
-            // 添加复制按钮到不同网站
-            addCopyButtonToBookTitle();
-            
-            // 注册油猴菜单
-            bindGM();
-            handleCrxtlgVideos(); // 添加这一行
+    // 屏蔽广告函数
+    function blockAds(observer = false) {
+        if (!observer) {
+            console.log('执行初始广告屏蔽');
+        }
+
+        let removedCount = 0;
+
+        // 获取所有可能的广告标签
+        const potentialLabels = document.querySelectorAll('.label, span');
+        const adLabels = [];
+
+        // 手动筛选包含"广告"文本的元素
+        potentialLabels.forEach(label => {
+            if (label.textContent && label.textContent.includes('广告')) {
+                adLabels.push(label);
+            }
         });
-    } else {
+
+        // 处理找到的广告标签
+        adLabels.forEach(label => {
+            // 找到包含广告的容器
+            const adContainer = label.closest('.video-img-box, .ad-container, [class*="ad"], [id*="ad"]') ||
+                              label.parentElement.closest('.video-img-box, .ad-container, [class*="ad"], [id*="ad"]');
+
+            if (adContainer && document.body.contains(adContainer)) {
+                adContainer.remove();
+                removedCount++;
+            }
+        });
+
+        // 处理黑色遮罩和其容器
+        const videoBoxes = document.querySelectorAll('.video-img-box');
+        videoBoxes.forEach(box => {
+            const labels = box.querySelectorAll('.label, span');
+            const hasAdLabel = Array.from(labels).some(label =>
+                label.textContent && label.textContent.includes('广告')
+            );
+
+            if (hasAdLabel && document.body.contains(box)) {
+                // 先找到所有可能的父容器
+                const containers = [];
+                let parent = box.parentElement;
+
+                // 向上查找所有可能的容器
+                while (parent && parent !== document.body) {
+                    if (parent.classList &&
+                        (parent.classList.contains('col-') ||
+                         parent.classList.contains('col-sm-') ||
+                         parent.classList.contains('col-lg-') ||
+                         parent.classList.contains('row') ||
+                         parent.classList.contains('container') ||
+                         parent.classList.contains('container-fluid') ||
+                         parent.querySelector(':scope > .row'))) {
+                        containers.unshift(parent); // 从最外层到最内层排序
+                    }
+                    parent = parent.parentElement;
+                }
+
+                // 从内到外移除元素
+                box.remove();
+
+                // 检查并移除空的父容器
+                for (const container of containers) {
+                    if (container && document.body.contains(container) &&
+                        (container.children.length === 0 ||
+                         Array.from(container.children).every(child => !document.body.contains(child)))) {
+                        container.remove();
+                    }
+                }
+
+                removedCount++;
+            }
+        });
+
+        // 处理所有层级的空容器
+        const removeEmptyContainers = () => {
+            const selectors = [
+                '.col-6', '.col-sm-4', '.col-lg-3',
+                '.col-4', '.col-sm-6', '.col-md-4',
+                '.col', '.col-auto', '.row',
+                '.d-flex', '.justify-content-center', '.text-center'
+            ];
+
+            let foundEmpty = true;
+            let iterations = 0;
+            const maxIterations = 10; // 防止无限循环
+
+            while (foundEmpty && iterations < maxIterations) {
+                foundEmpty = false;
+                iterations++;
+
+                selectors.forEach(selector => {
+                    document.querySelectorAll(selector).forEach(container => {
+                        if (document.body.contains(container) &&
+                            (container.children.length === 0 ||
+                             (container.textContent || '').trim() === '' ||
+                             Array.from(container.children).every(child => !document.body.contains(child)))) {
+                            container.remove();
+                            foundEmpty = true;
+                            removedCount++;
+                        }
+                    });
+                });
+            }
+        };
+
+        // 执行容器清理
+        removeEmptyContainers();
+
+        if (removedCount > 0) {
+            console.log(`[${observer ? '动态' : '初始'}检测] 移除了 ${removedCount} 个广告元素`);
+        } else if (!observer) {
+            console.log('未找到匹配的广告元素');
+        }
+    }
+
+    // 检查元素是否可能是广告容器
+    function isLikelyAdContainer(element) {
+        if (!element) return false;
+
+        // 检查元素是否可见
+        const style = window.getComputedStyle(element);
+        if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+            return false;
+        }
+
+        // 检查元素尺寸
+        const rect = element.getBoundingClientRect();
+        const isVisible = rect.width > 0 && rect.height > 0;
+        const isLargeEnough = (rect.width > 300 || rect.height > 250) && (rect.width > 50 && rect.height > 50);
+
+        return isVisible && isLargeEnough;
+    }
+
+    // 监听DOM变化以捕获动态加载的广告
+    function observeAdChanges() {
+        console.log('初始化广告动态监听');
+
+        // 记录已经处理过的广告元素
+        const processedAds = new WeakSet();
+
+        // 检查并移除广告的函数
+        const checkAndRemoveAds = () => {
+            let removedCount = 0;
+
+            // 获取所有可能的广告标签
+            const potentialLabels = document.querySelectorAll('.label, span');
+            const adLabels = [];
+
+            // 手动筛选包含"广告"文本的元素
+            potentialLabels.forEach(label => {
+                if (label.textContent && label.textContent.includes('广告') && !processedAds.has(label)) {
+                    adLabels.push(label);
+                }
+            });
+
+            // 处理找到的广告标签
+            adLabels.forEach(label => {
+                // 找到包含广告的容器
+                const adContainer = label.closest('.video-img-box, .ad-container, [class*="ad"], [id*="ad"]') ||
+                                  label.parentElement.closest('.video-img-box, .ad-container, [class*="ad"], [id*="ad"]');
+
+                if (adContainer && document.body.contains(adContainer)) {
+                    adContainer.remove();
+                    processedAds.add(label);
+                    removedCount++;
+                    console.log('已移除广告容器:', adContainer);
+                }
+            });
+
+            // 处理黑色遮罩和其容器
+            const videoBoxes = document.querySelectorAll('.video-img-box');
+            videoBoxes.forEach(box => {
+                if (processedAds.has(box)) return;
+
+                const labels = box.querySelectorAll('.label, span');
+                const hasAdLabel = Array.from(labels).some(label =>
+                    label.textContent && label.textContent.includes('广告')
+                );
+
+                if (hasAdLabel && document.body.contains(box)) {
+                    // 先找到所有可能的父容器
+                    const containers = [];
+                    let parent = box.parentElement;
+
+                    // 向上查找所有可能的容器
+                    while (parent && parent !== document.body) {
+                        if (parent.classList &&
+                            (parent.classList.contains('col-') ||
+                             parent.classList.contains('col-sm-') ||
+                             parent.classList.contains('col-lg-') ||
+                             parent.classList.contains('row') ||
+                             parent.classList.contains('container') ||
+                             parent.classList.contains('container-fluid') ||
+                             parent.querySelector(':scope > .row'))) {
+                            containers.unshift(parent); // 从最外层到最内层排序
+                        }
+                        parent = parent.parentElement;
+                    }
+
+                    // 从内到外移除元素
+                    box.remove();
+                    processedAds.add(box);
+                    console.log('已移除广告遮罩:', box);
+
+                    // 检查并移除空的父容器
+                    for (const container of containers) {
+                        if (container && document.body.contains(container) && !processedAds.has(container) &&
+                            (container.children.length === 0 ||
+                             Array.from(container.children).every(child => !document.body.contains(child)))) {
+                            container.remove();
+                            processedAds.add(container);
+                            console.log('已移除空的广告容器:', container);
+                        }
+                    }
+
+                    removedCount++;
+                }
+            });
+
+            // 处理所有层级的空容器
+            const removeEmptyContainers = () => {
+                const selectors = [
+                    '.col-6', '.col-sm-4', '.col-lg-3',
+                    '.col-4', '.col-sm-6', '.col-md-4',
+                    '.col', '.col-auto', '.row',
+                    '.d-flex', '.justify-content-center', '.text-center'
+                ];
+
+                let foundEmpty = true;
+                let iterations = 0;
+                const maxIterations = 10; // 防止无限循环
+
+                while (foundEmpty && iterations < maxIterations) {
+                    foundEmpty = false;
+                    iterations++;
+
+                    selectors.forEach(selector => {
+                        document.querySelectorAll(selector).forEach(container => {
+                            if (document.body.contains(container) && !processedAds.has(container) &&
+                                (container.children.length === 0 ||
+                                 (container.textContent || '').trim() === '' ||
+                                 Array.from(container.children).every(child => !document.body.contains(child)))) {
+                                container.remove();
+                                processedAds.add(container);
+                                foundEmpty = true;
+                                removedCount++;
+                            }
+                        });
+                    });
+                }
+            };
+
+            // 执行容器清理
+            removeEmptyContainers();
+
+            if (removedCount > 0) {
+                console.log(`[动态检测] 移除了 ${removedCount} 个广告元素`);
+            }
+
+            return removedCount;
+        };
+
+        // 初始检查
+        checkAndRemoveAds();
+
+        // 创建MutationObserver来监听DOM变化
+        const observer = new MutationObserver(() => {
+            // 使用防抖避免频繁触发
+            if (!window.adCheckTimeout) {
+                window.adCheckTimeout = setTimeout(() => {
+                    checkAndRemoveAds();
+                    window.adCheckTimeout = null;
+                }, 100);
+            }
+        });
+
+        // 开始观察document.body的子元素变化
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+
+        console.log('已启动广告动态监听');
+
+        // 页面卸载时清理
+        window.addEventListener('unload', () => {
+            observer.disconnect();
+            if (window.adCheckTimeout) {
+                clearTimeout(window.adCheckTimeout);
+            }
+        });
+    }
+
+    // 页面加载完成后执行的函数
+    function initializeScript() {
+        console.log('开始初始化脚本...');
+
+        // 初始执行广告屏蔽
+        console.log('准备执行 blockAds()');
+        blockAds();
+
+        // 监听动态加载的广告
+        console.log('准备执行 observeAdChanges()');
+        observeAdChanges();
+
+        // 执行其他通用功能
         addTargetBlank();
         observeDOM();
         addRightClickCloseTab();
         initInfiniteScrollForQidiantu(); // 添加无限滚动功能
-        
+
         // 添加复制按钮到不同网站
         addCopyButtonToBookTitle();
-        
+
         // 注册油猴菜单
         bindGM();
         handleCrxtlgVideos(); // 添加这一行
+    }
+
+    // 页面加载状态检查
+    console.log('检查页面加载状态:', document.readyState);
+
+    if (document.readyState === 'loading') {
+        // 如果页面还在加载，等待DOMContentLoaded
+        console.log('页面正在加载，添加DOMContentLoaded监听器...');
+        document.addEventListener('DOMContentLoaded', function documentReady() {
+            console.log('DOMContentLoaded 事件触发');
+            initializeScript();
+        });
+    } else {
+        // 如果页面已经加载完成，直接执行
+        console.log('页面已经加载完成，直接执行初始化');
+        // 使用setTimeout确保DOM完全加载
+        setTimeout(initializeScript, 100);
     }
 
     console.log('自动新标签页打开脚本已加载（已优化，不会干扰内部功能）');

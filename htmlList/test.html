@@ -1,0 +1,313 @@
+<!-- 
+  @Author: xhg
+  @Date:   2025-07-18 22:28:16
+  @Last Modified by:   xhg
+  @Last Modified time: 2025-07-20 10:40:20
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <title>学习计时器</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%);
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+            backdrop-filter: blur(4px);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 1.5rem;
+        }
+
+        .input-group {
+            margin-bottom: 1.5rem;
+        }
+
+        input[type="number"] {
+            width: 100px;
+            padding: 0.5rem;
+            border: 2px solid #a1c4fd;
+            border-radius: 5px;
+            font-size: 1rem;
+            margin-right: 0.5rem;
+        }
+
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 0.7rem 1.5rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #45a049;
+        }
+
+        button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+
+        #timer {
+            font-size: 4rem;
+            font-weight: bold;
+            color: #2c3e50;
+            margin: 1rem 0;
+            position: relative;
+        }
+
+        .progress-ring {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+        }
+
+        .progress-ring__circle {
+            transition: stroke-dashoffset 1s linear;
+            stroke: #4CAF50;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+        }
+
+        .quick-time {
+            margin: 1rem 0;
+        }
+
+        .time-btn {
+            margin: 0 0.5rem;
+            padding: 0.5rem 1rem;
+            background: #2196F3;
+        }
+
+        .status {
+            font-size: 1.2rem;
+            color: #666;
+            margin-bottom: 1rem;
+        }
+
+        #continueBtn {
+            display: none;
+            background: #2196F3;
+        }
+
+        #continueBtn:hover {
+            background: #1976D2;
+        }
+
+        #stopBtn {
+            background: #f44336;
+            margin-left: 0.5rem;
+        }
+
+        #stopBtn:hover {
+            background: #d32f2f;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>学习计时器</h1>
+        <div class="input-group">
+            <input type="number" id="minutes" min="1" value="10" placeholder="分钟">
+            <div class="quick-time">
+                <button class="time-btn" data-minutes="10">10分钟</button>
+                <button class="time-btn" data-minutes="25">25分钟</button>
+                <button class="time-btn" data-minutes="45">45分钟</button>
+            </div>
+            <button id="startPauseBtn" onclick="toggleTimer()">开始</button>
+            <button id="stopBtn" onclick="stopTimer()" style="display: none;">停止</button>
+        </div>
+        <div id="timer">00:00</div>
+        <div class="status" id="status"></div>
+        <button id="continueBtn" onclick="continueTimer()">继续学习</button>
+    </div>
+
+    <script>
+        let countdown;
+        let remainingTime;
+        let originalTime;
+        const progress = document.getElementById('progress');
+        const radius = 56;
+        const circumference = radius * 2 * Math.PI;
+
+        document.querySelectorAll('.time-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.getElementById('minutes').value = btn.dataset.minutes;
+            });
+        });
+
+        let isPaused = false;
+
+        function toggleTimer() {
+            if (countdown) {
+                if (isPaused) {
+                    // 从暂停中恢复
+                    countdown = setInterval(updateTimer, 1000);
+                    updateButtons(true);
+                    isPaused = false;
+                } else {
+                    // 暂停计时
+                    clearInterval(countdown);
+                    document.getElementById('startPauseBtn').textContent = '继续';
+                    isPaused = true;
+                }
+            } else {
+                // 首次启动计时
+                startTimer();
+            }
+        }
+
+        function startTimer() {
+            // 初始化进度环
+            const timerElement = document.getElementById('timer');
+            timerElement.innerHTML = `
+                <svg class="progress-ring" viewBox="0 0 120 120">
+                    <circle class="progress-ring__circle" stroke-width="8" fill="transparent" r="56" cx="60" cy="60"/>
+                </svg>
+                <div class="time-text">00:00</div>
+            `;
+            const minutes = parseInt(document.getElementById('minutes').value);
+            if (isNaN(minutes) || minutes <= 0) {
+                alert('请输入有效的分钟数！');
+                return;
+            }
+
+            originalTime = minutes * 60;
+            remainingTime = originalTime;
+            updateTimerDisplay();
+            updateButtons(true);
+            countdown = setInterval(updateTimer, 1000);
+
+            // 播放开始提示音
+            playSound('start');
+            isPaused = false; // 确保开始时不是暂停状态
+        }
+
+        function updateTimer() {
+            remainingTime--;
+            updateTimerDisplay();
+
+            if (remainingTime <= 0) {
+                clearInterval(countdown);
+                // 播放结束提示音
+                playSound('end');
+                if (confirm('专注达成！是否继续？')) {
+                    continueTimer();
+                } else {
+                    stopTimer();
+                }
+                document.getElementById('startPauseBtn').textContent = '开始'; // 计时结束后，开始/暂停按钮显示为“开始”
+                document.getElementById('stopBtn').style.display = 'none'; // 隐藏停止按钮
+                isPaused = false; // 确保计时结束后不是暂停状态
+                document.getElementById('continueBtn').style.display = 'inline-block'; // 显示继续按钮
+
+            }
+        }
+
+        function updateTimerDisplay() {
+            // 更新进度环
+            const circle = document.querySelector('.progress-ring__circle');
+            if (circle) {
+                const progress = remainingTime / originalTime;
+                const dashoffset = circumference * progress;
+                circle.style.strokeDasharray = `${circumference} ${circumference}`;
+                circle.style.strokeDashoffset = dashoffset;
+            }
+            const minutes = Math.floor(remainingTime / 60);
+            const seconds = remainingTime % 60;
+            document.querySelector('.time-text').textContent = 
+                `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+        }
+
+        function continueTimer() {
+            remainingTime = originalTime;
+            updateTimerDisplay();
+            updateButtons(true);
+            countdown = setInterval(updateTimer, 1000);
+            document.getElementById('status').textContent = '';
+            
+            // 播放继续提示音
+            playSound('start'); // 沿用开始音效
+            isPaused = false; // 继续后不是暂停状态
+        }
+
+        function stopTimer() {
+            clearInterval(countdown);
+            document.querySelector('.time-text').textContent = '00:00';
+            document.getElementById('status').textContent = '';
+            updateButtons(false);
+        }
+
+        function updateButtons(timerRunning) {
+            const startPauseBtn = document.getElementById('startPauseBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            const continueBtn = document.getElementById('continueBtn');
+            const minutesInput = document.getElementById('minutes');
+
+            if (timerRunning) {
+                startPauseBtn.textContent = '暂停';
+                stopBtn.style.display = 'inline-block';
+                continueBtn.style.display = 'none';
+                minutesInput.disabled = true;
+            } else {
+                startPauseBtn.textContent = '开始';
+                stopBtn.style.display = 'none';
+                // continueBtn.style.display = 'none'; // 移除这行，由其他逻辑控制
+                minutesInput.disabled = false;
+            }
+            // 确保在计时器停止或结束时，继续按钮的显示状态正确
+            if (remainingTime <= 0 && !timerRunning) { // 只有当时间归零且计时器未运行时才显示继续按钮
+                continueBtn.style.display = 'inline-block';
+            } else {
+                continueBtn.style.display = 'none';
+            }
+        }
+
+        function playSound(type) {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+
+            oscillator.type = 'square';
+            gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+
+            switch(type) {
+                case 'start':
+                    oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+                    break;
+                case 'end':
+                    oscillator.frequency.setValueAtTime(1200, audioContext.currentTime);
+                    break;
+            }
+
+            oscillator.start();
+            oscillator.stop(audioContext.currentTime + 0.3);
+        }
+    </script>
+</body>
+</html>
